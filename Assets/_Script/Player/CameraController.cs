@@ -87,11 +87,11 @@ public class CameraController : MonoBehaviour
         Vector3 finalPos = cameraNormalPos;
 
         // 카메라에 구형레이를 넣어 마스크 목록에 있는 것과 충돌 체크
-        //if (Physics.SphereCast(cameraPivot, collisionRadius, cameraBackDir, out RaycastHit hit, cameraBackDistance, collisionMask))
-        //{
-        //    //벽, 천장에 닿았을 때만 함수 실행
-        //    finalPos = CorrectCameraPositionOnCollision(cameraPivot, cameraBackDir, hit);
-        //}
+        if (Physics.SphereCast(cameraPivot, collisionRadius, cameraBackDir, out RaycastHit hit, cameraBackDistance, collisionMask))
+        {
+            //벽, 천장에 닿았을 때만 함수 실행
+            finalPos = CorrectCameraPositionOnCollision(cameraPivot, cameraBackDir, hit);
+        }
 
         //스냅 여부 최종 카메라 위치 조정 
         if (snapMode)

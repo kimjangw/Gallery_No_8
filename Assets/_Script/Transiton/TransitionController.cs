@@ -6,6 +6,8 @@ public class TransitionController : MonoBehaviour
     public Transform player;                  // 전환부에 이용될 플레이어의 Transform
     public CharacterController cc;            // 전환부에서 CC켜고 이동시 끼임 및 튀어나감 증상 제어를 위한 변수
     public CameraController cameraController; //
+    public LoopManager loopManager;
+
 
     [Header("Portal Hub")]
     public TransitionHub hub;               // 자기쪽 Hub
@@ -14,7 +16,8 @@ public class TransitionController : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         // player 체크
-        if (other.transform != player) return;
+        if (other.gameObject.layer != LayerMask.NameToLayer("Player"))
+            return;
 
         // 이미 잠겨있으면 이동 금지
         if (hub.locked) return;
@@ -27,6 +30,9 @@ public class TransitionController : MonoBehaviour
         // 이동시 중복이동 방지를 위해 양쪽 Lock
         hub.locked = true;
         linkedHub.locked = true;
+
+
+        loopManager.OnTransition(hub);
 
         // Player 겹침 및 튕김 방지(OFF)
         cc.enabled = false;
@@ -41,5 +47,8 @@ public class TransitionController : MonoBehaviour
 
         //카메라 재정렬
         cameraController.SnapToPlayerInstant();
+
+        //
+        loopManager.ResetFixLine();
     }
 }
