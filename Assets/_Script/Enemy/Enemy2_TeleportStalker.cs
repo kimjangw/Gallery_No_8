@@ -9,6 +9,10 @@ public class Enemy2_TeleportStalker : MonoBehaviour
     EnemySensor sensor;
     Transform player;
 
+    [Header("Player (Layer)")]
+    public string playerLayerName = "Player";
+    int playerLayerIndex = -1;
+
     [Header("Settings")]
     public int maxTeleports = 3;
     public float behindDistance = 2.2f;
@@ -20,7 +24,7 @@ public class Enemy2_TeleportStalker : MonoBehaviour
     float cd;
     bool active;
 
-    // ===== Common Stare (공통패턴) =====
+    // ===== Common Stare =====
     bool commonStareActive;
 
     Vector3 spawnPos;
@@ -30,7 +34,10 @@ public class Enemy2_TeleportStalker : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         sensor = GetComponent<EnemySensor>();
-        player = GameObject.FindWithTag("Player")?.transform;
+
+        playerLayerIndex = LayerMask.NameToLayer(playerLayerName);
+        player = FindPlayerByLayerIndex(playerLayerIndex);
+
         if (!loop) loop = FindObjectOfType<LoopManager>();
 
         spawnPos = transform.position;
@@ -39,37 +46,82 @@ public class Enemy2_TeleportStalker : MonoBehaviour
         Deactivate();
     }
 
+    void OnTriggerEnter(Collider other)
+    {
+        if (playerLayerIndex < 0) return;
+        if (other.gameObject.layer != playerLayerIndex) return;
+
+        player = other.transform.root;
+    }
+
     public void Activate()
     {
-        if (!sensor || player == null) { enabled = false; return; }
+        if (player == null && playerLayerIndex >= 0)
+            player = FindPlayerByLayerIndex(playerLayerIndex);
+
+        if (!sensor || player == null)
+        {
+            Debug.LogWarning("[Enemy2_TeleportStalker] Activate failed: sensor/player missing", this);
+            enabled = false;
+            return;
+        }
+
+        CancelInvoke();
+        StopAllCoroutines();
 
         active = true;
         count = 0;
         cd = 0f;
-        if (agent) agent.isStopped = true;
+
+        if (agent && agent.isOnNavMesh)
+            agent.isStopped = true;
+
         enabled = true;
     }
 
     public void Deactivate()
     {
+        CancelInvoke();
+        StopAllCoroutines();
+
         active = false;
-        if (agent) agent.isStopped = true;
+        commonStareActive = false;
+
+        if (agent && agent.isOnNavMesh)
+            agent.isStopped = true;
+
         enabled = false;
     }
 
     public void ResetEnemy()
     {
+        CancelInvoke();
+        StopAllCoroutines();
+
         count = 0;
         cd = 0f;
+        active = false;
         commonStareActive = false;
-        if (agent) agent.isStopped = true;
+
+        if (agent && agent.isOnNavMesh)
+            agent.isStopped = true;
 
         transform.SetPositionAndRotation(spawnPos, spawnRot);
+
+        if (agent && !agent.isOnNavMesh)
+        {
+            if (NavMesh.SamplePosition(transform.position, out var hit, 1.0f, NavMesh.AllAreas))
+                transform.position = hit.position;
+        }
+
+        enabled = false;
     }
 
-    // ===== 공통패턴(랜덤 1개가 나를 쳐다봄) 지원 =====
     public void StartCommonStare()
     {
+        if (player == null && playerLayerIndex >= 0)
+            player = FindPlayerByLayerIndex(playerLayerIndex);
+
         commonStareActive = true;
         enabled = true;
     }
@@ -77,11 +129,13 @@ public class Enemy2_TeleportStalker : MonoBehaviour
     public void StopCommonStare()
     {
         commonStareActive = false;
+        if (!active) enabled = false;
     }
 
     void Update()
     {
-        // 공통 Stare 우선권
+        if (player == null) return;
+
         if (commonStareActive)
         {
             FacePlayer(6f);
@@ -98,7 +152,6 @@ public class Enemy2_TeleportStalker : MonoBehaviour
             TeleportBehind();
 
             count++;
-
             if (killAfterCycles && count >= maxTeleports)
                 DoKill();
         }
@@ -110,8 +163,6 @@ public class Enemy2_TeleportStalker : MonoBehaviour
 
     void TeleportBehind()
     {
-        if (player == null) return;
-
         Vector3 desired = player.position - player.forward * behindDistance;
 
         if (NavMesh.SamplePosition(desired, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
@@ -125,7 +176,6 @@ public class Enemy2_TeleportStalker : MonoBehaviour
 
     void FacePlayer(float speed)
     {
-        if (player == null) return;
         Vector3 dir = (player.position - transform.position);
         dir.y = 0f;
         if (dir.sqrMagnitude < 0.0001f) return;
@@ -139,5 +189,18 @@ public class Enemy2_TeleportStalker : MonoBehaviour
     {
         loop?.OnEnemyKill();
         Deactivate();
+    }
+
+    Transform FindPlayerByLayerIndex(int layerIndex)
+    {
+        if (layerIndex < 0) return null;
+
+        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i].gameObject.layer == layerIndex)
+                return all[i];
+        }
+        return null;
     }
 }

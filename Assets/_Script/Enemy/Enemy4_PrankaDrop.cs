@@ -4,6 +4,11 @@ public class Enemy4_PrankaDrop : MonoBehaviour
 {
     [Header("Refs")]
     public LoopManager loop;
+    Transform player;
+
+    [Header("Player (Layer)")]
+    public string playerLayerName = "Player";
+    int playerLayerIndex = -1;
 
     [Header("Settings")]
     public float existTime = 3f;
@@ -11,10 +16,8 @@ public class Enemy4_PrankaDrop : MonoBehaviour
     float t;
     bool active;
 
-    // ===== Common Stare (공통패턴) =====
+    // ===== Common Stare =====
     bool commonStareActive;
-
-    Transform player;
 
     Vector3 spawnPos;
     Quaternion spawnRot;
@@ -22,7 +25,9 @@ public class Enemy4_PrankaDrop : MonoBehaviour
     void Awake()
     {
         if (!loop) loop = FindObjectOfType<LoopManager>();
-        player = GameObject.FindWithTag("Player")?.transform;
+
+        playerLayerIndex = LayerMask.NameToLayer(playerLayerName);
+        player = FindPlayerByLayerIndex(playerLayerIndex);
 
         spawnPos = transform.position;
         spawnRot = transform.rotation;
@@ -30,31 +35,58 @@ public class Enemy4_PrankaDrop : MonoBehaviour
         Deactivate();
     }
 
+    void OnTriggerEnter(Collider other)
+    {
+        if (playerLayerIndex < 0) return;
+        if (other.gameObject.layer != playerLayerIndex) return;
+
+        player = other.transform.root;
+    }
+
     public void Activate()
     {
+        if (player == null && playerLayerIndex >= 0)
+            player = FindPlayerByLayerIndex(playerLayerIndex);
+
+        CancelInvoke();
+        StopAllCoroutines();
+
         active = true;
         t = 0f;
         enabled = true;
 
-        // 낙하/출현 연출은 여기서 구현
+        // 낙하/출현 연출 시작 지점
     }
 
     public void Deactivate()
     {
+        CancelInvoke();
+        StopAllCoroutines();
+
         active = false;
+        commonStareActive = false;
+
         enabled = false;
     }
 
     public void ResetEnemy()
     {
+        CancelInvoke();
+        StopAllCoroutines();
+
         t = 0f;
+        active = false;
         commonStareActive = false;
+
         transform.SetPositionAndRotation(spawnPos, spawnRot);
+        enabled = false;
     }
 
-    // ===== 공통패턴(랜덤 1개가 나를 쳐다봄) 지원 =====
     public void StartCommonStare()
     {
+        if (player == null && playerLayerIndex >= 0)
+            player = FindPlayerByLayerIndex(playerLayerIndex);
+
         commonStareActive = true;
         enabled = true;
     }
@@ -62,11 +94,13 @@ public class Enemy4_PrankaDrop : MonoBehaviour
     public void StopCommonStare()
     {
         commonStareActive = false;
+        if (!active) enabled = false;
     }
 
     void Update()
     {
-        // 공통 Stare 우선권
+        if (player == null) return;
+
         if (commonStareActive)
         {
             FacePlayer(6f);
@@ -85,12 +119,24 @@ public class Enemy4_PrankaDrop : MonoBehaviour
 
     void FacePlayer(float speed)
     {
-        if (player == null) return;
         Vector3 dir = (player.position - transform.position);
         dir.y = 0f;
         if (dir.sqrMagnitude < 0.0001f) return;
 
         Quaternion target = Quaternion.LookRotation(dir.normalized, Vector3.up);
         transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * speed);
+    }
+
+    Transform FindPlayerByLayerIndex(int layerIndex)
+    {
+        if (layerIndex < 0) return null;
+
+        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i].gameObject.layer == layerIndex)
+                return all[i];
+        }
+        return null;
     }
 }

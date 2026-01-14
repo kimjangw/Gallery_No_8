@@ -9,6 +9,10 @@ public class Enemy3_StareKill : MonoBehaviour
     EnemySensor sensor;
     Transform player;
 
+    [Header("Player (Layer)")]
+    public string playerLayerName = "Player";
+    int playerLayerIndex = -1;
+
     [Header("Settings")]
     public float stareTimeToCharge = 4f;
     public float killDistance = 1.1f;
@@ -18,7 +22,7 @@ public class Enemy3_StareKill : MonoBehaviour
     bool charging;
     bool active;
 
-    // ===== Common Stare (공통패턴) =====
+    // ===== Common Stare =====
     bool commonStareActive;
 
     Vector3 spawnPos;
@@ -28,7 +32,10 @@ public class Enemy3_StareKill : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         sensor = GetComponent<EnemySensor>();
-        player = GameObject.FindWithTag("Player")?.transform;
+
+        playerLayerIndex = LayerMask.NameToLayer(playerLayerName);
+        player = FindPlayerByLayerIndex(playerLayerIndex);
+
         if (!loop) loop = FindObjectOfType<LoopManager>();
 
         spawnPos = transform.position;
@@ -37,37 +44,82 @@ public class Enemy3_StareKill : MonoBehaviour
         Deactivate();
     }
 
+    void OnTriggerEnter(Collider other)
+    {
+        if (playerLayerIndex < 0) return;
+        if (other.gameObject.layer != playerLayerIndex) return;
+
+        player = other.transform.root;
+    }
+
     public void Activate()
     {
-        if (!agent || !sensor || player == null) { enabled = false; return; }
+        if (player == null && playerLayerIndex >= 0)
+            player = FindPlayerByLayerIndex(playerLayerIndex);
+
+        if (!agent || !sensor || player == null)
+        {
+            Debug.LogWarning("[Enemy3_StareKill] Activate failed: agent/sensor/player missing", this);
+            enabled = false;
+            return;
+        }
+
+        CancelInvoke();
+        StopAllCoroutines();
 
         active = true;
         stare = 0f;
         charging = false;
-        agent.isStopped = true;
+
+        if (agent.isOnNavMesh)
+            agent.isStopped = true;
+
         enabled = true;
     }
 
     public void Deactivate()
     {
+        CancelInvoke();
+        StopAllCoroutines();
+
         active = false;
-        if (agent) agent.isStopped = true;
+        commonStareActive = false;
+
+        if (agent && agent.isOnNavMesh)
+            agent.isStopped = true;
+
         enabled = false;
     }
 
     public void ResetEnemy()
     {
+        CancelInvoke();
+        StopAllCoroutines();
+
         stare = 0f;
         charging = false;
+        active = false;
         commonStareActive = false;
-        if (agent) agent.isStopped = true;
+
+        if (agent && agent.isOnNavMesh)
+            agent.isStopped = true;
 
         transform.SetPositionAndRotation(spawnPos, spawnRot);
+
+        if (agent && !agent.isOnNavMesh)
+        {
+            if (NavMesh.SamplePosition(transform.position, out var hit, 1.0f, NavMesh.AllAreas))
+                transform.position = hit.position;
+        }
+
+        enabled = false;
     }
 
-    // ===== 공통패턴(랜덤 1개가 나를 쳐다봄) 지원 =====
     public void StartCommonStare()
     {
+        if (player == null && playerLayerIndex >= 0)
+            player = FindPlayerByLayerIndex(playerLayerIndex);
+
         commonStareActive = true;
         enabled = true;
     }
@@ -75,11 +127,13 @@ public class Enemy3_StareKill : MonoBehaviour
     public void StopCommonStare()
     {
         commonStareActive = false;
+        if (!active) enabled = false;
     }
 
     void Update()
     {
-        // 공통 Stare 우선권
+        if (player == null) return;
+
         if (commonStareActive)
         {
             FacePlayer(6f);
@@ -87,6 +141,7 @@ public class Enemy3_StareKill : MonoBehaviour
         }
 
         if (!active) return;
+        if (!agent || !agent.isOnNavMesh) return;
 
         FacePlayer(faceSpeed);
 
@@ -113,7 +168,6 @@ public class Enemy3_StareKill : MonoBehaviour
 
     void FacePlayer(float speed)
     {
-        if (player == null) return;
         Vector3 dir = (player.position - transform.position);
         dir.y = 0;
         if (dir.sqrMagnitude < 0.0001f) return;
@@ -126,5 +180,18 @@ public class Enemy3_StareKill : MonoBehaviour
     {
         loop?.OnEnemyKill();
         Deactivate();
+    }
+
+    Transform FindPlayerByLayerIndex(int layerIndex)
+    {
+        if (layerIndex < 0) return null;
+
+        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
+        for (int i = 0; i < all.Length; i++)
+        {
+            if (all[i].gameObject.layer == layerIndex)
+                return all[i];
+        }
+        return null;
     }
 }

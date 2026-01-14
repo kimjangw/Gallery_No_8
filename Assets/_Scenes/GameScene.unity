@@ -5175,7 +5175,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f164c3d63c2b224bb3726786dbb826f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  loop: {fileID: 0}
+  loop: {fileID: 286086521}
+  playerLayerName: Player
   killTime: 10
   killDistance: 1.2
   weakCountsAsUnseen: 1
@@ -7866,7 +7867,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d8b8584b18f9ea4bba437721e2715a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  loop: {fileID: 0}
+  loop: {fileID: 286086521}
+  playerLayerName: Player
   stareTimeToCharge: 4
   killDistance: 1.1
   faceSpeed: 8
@@ -9546,7 +9548,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 3988d7fe4d852044dbe9ef0428bc40f9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  loop: {fileID: 0}
+  loop: {fileID: 286086521}
+  playerLayerName: Player
   keepDistance: 3
   resumeDistance: 4.5
   maxFollowTime: 0
@@ -9708,7 +9711,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1bee82bd54a3f5b4cb52890c5c238c04, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  loop: {fileID: 0}
+  loop: {fileID: 286086521}
+  playerLayerName: Player
   existTime: 3
 --- !u!195 &2102081394
 NavMeshAgent:
