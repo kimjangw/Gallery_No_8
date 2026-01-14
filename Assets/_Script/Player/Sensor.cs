@@ -11,8 +11,8 @@ public class PlayerSensor : MonoBehaviour
 
     [Header("Settings")]
     public LayerMask obstacleMask;
-    public float enterAngleDeg = 30f;
-    public float exitAngleDeg = 45f;
+    public float enterAngleDeg = 33f;
+    public float exitAngleDeg = 55f;
 
     // 내부 변환값 (외부 수정 불가)
     private float sightDistance;
