@@ -4,7 +4,7 @@ public class LoopManager : MonoBehaviour
 {
     public bool hasMonster = false; // 층별 몬스터 존재 여부
     public int floor = 0;           // 0층 = 둘러보기층
-
+    public EnemyController enemyController;
     public System.Action<int> OnFloorChanged;
 
     TransitionHub fixedHub = null;
@@ -28,7 +28,13 @@ public class LoopManager : MonoBehaviour
             floor = 1;
             SetupPattern();
             Debug.Log("[TRANS] 0층 종료 → 1층 시작");
-            OnFloorChanged?.Invoke(floor); 
+            OnFloorChanged?.Invoke(floor);
+
+            if (hasMonster)
+                enemyController?.ActivateOne(); // ← 단일 Enemy 활성
+            else
+                enemyController?.DeactivateAll(); // ← Idle
+
             return;
         }
 
@@ -70,11 +76,17 @@ public class LoopManager : MonoBehaviour
         // Fix 초기화 후 다음 패턴 설정
         fixedHub = null;
         SetupPattern();
+
+        if (hasMonster)
+            enemyController?.ActivateOne();
+        else
+            enemyController?.DeactivateAll();
+
     }
 
     public void ResetFixLine()
     {
-        foreach (var fix in FindObjectsOfType<FixLine>())
+        foreach (var fix in Object.FindObjectsByType<FixLine>(FindObjectsSortMode.None))
             fix.ResetFix();
 
         fixedHub = null;
@@ -94,4 +106,40 @@ public class LoopManager : MonoBehaviour
 
         Debug.Log($"[패턴] {floor}층 → 몬스터={(hasMonster ? "있음" : "없음")}");
     }
+
+
+    public void OnEnemyKill()
+    {
+        Debug.Log("[LOOP] Kill 발생 → Loop Reset");
+
+        // Enemy 초기화
+        enemyController?.ResetAll();
+
+        // Kill은 무조건 1층으로 리셋 (설계 반영 가능)
+        floor = 1;
+        SetupPattern();
+
+        // 새 Loop 시작
+        if (hasMonster)
+            enemyController?.ActivateOne();
+        else
+            enemyController?.DeactivateAll();
+    }
+
+
+    public void OnEnemyEnd()
+    {
+        Debug.Log("[LOOP] 패턴 종료 → Loop 진행");
+
+        enemyController?.ResetAll();
+
+        //floor++;
+        //SetupPattern();
+
+        //if (hasMonster)
+        //    enemyController?.ActivateOne();
+        //else
+        //    enemyController?.DeactivateAll();
+    }
+
 }
