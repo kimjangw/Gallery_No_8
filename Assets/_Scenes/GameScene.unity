@@ -3926,6 +3926,10 @@ MonoBehaviour:
   actionTriggerToReset: {fileID: 1841785239}
   hub: {fileID: 1287768518}
   linkedHub: {fileID: 234457841}
+  movementScriptsToPause:
+  - {fileID: 1205529401}
+  pauseFrames: 3
+  debugOverlap: 0
 --- !u!1 &758130983
 GameObject:
   m_ObjectHideFlags: 0
@@ -4108,7 +4112,7 @@ GameObject:
   - component: {fileID: 819437847}
   - component: {fileID: 819437846}
   - component: {fileID: 819437849}
-  m_Layer: 10
+  m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
   m_Icon: {fileID: 0}
@@ -6562,7 +6566,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1255476310
 Transform:
   m_ObjectHideFlags: 0
@@ -6975,7 +6979,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1326317715}
   - component: {fileID: 1326317716}
-  m_Layer: 10
+  m_Layer: 0
   m_Name: CameraRig
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -7021,7 +7025,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 0
   collisionRadius: 0.01
-  collisionBuffer: 1
+  collisionBuffer: 0.1
   cameraLerpSpeed: 12
   yaw: 0
 --- !u!1 &1341617473
@@ -9097,6 +9101,10 @@ MonoBehaviour:
   actionTriggerToReset: {fileID: 1841785239}
   hub: {fileID: 234457841}
   linkedHub: {fileID: 1287768518}
+  movementScriptsToPause:
+  - {fileID: 1205529401}
+  pauseFrames: 3
+  debugOverlap: 0
 --- !u!4 &1832561690 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -4484586303138264298, guid: 780d340bd8578d54f80ca5409d087ef6, type: 3}
