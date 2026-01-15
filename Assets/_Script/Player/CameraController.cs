@@ -20,8 +20,8 @@ public class CameraController : MonoBehaviour
     //TPS구현을 위한 카메라의 등뒤 위치 세팅.
     [Header("CameraOffset")]
     public float cameraBackDistance = 1.1f;        // 뒤
-    public float cameraHeight = 1.12f;          // 위
-    public float cameraShoulderOffset = 0.2f;  // 우측 어깨
+    public float cameraHeight = 1.12f;             // 위
+    public float cameraShoulderOffset = 0.2f;      // 우측 어깨
 
     //민감도 조절 및 최대 시야각(위,아래)조절
     [Header("CameraRotation")]
@@ -34,7 +34,15 @@ public class CameraController : MonoBehaviour
     public LayerMask collisionMask;
     public float collisionRadius = 0.01f;
     public float collisionBuffer = 1f;
+
+    // 평상시 보간 속도(인스펙터에서 조절 가능)
     public float cameraLerpSpeed = 12f;
+
+    // [CHANGE] 전환 순간 보간 속도는 코드로 고정 (인스펙터에 노출 X)
+    const float TRANSITION_LERP_SPEED = 100f;
+
+    // [ADD] 전환 순간에만 true가 되는 플래그
+    bool transitionBoost = false;
 
     //플레이어 좌,우 회전 변수
     public float yaw;
@@ -43,7 +51,6 @@ public class CameraController : MonoBehaviour
 
     // 보간 임시 비활성 모드 플래그 추가
     bool snapMode = false;
-
 
     void Start()
     {
@@ -62,7 +69,6 @@ public class CameraController : MonoBehaviour
         //마우스의 현재 값 읽기
         Vector2 mouse = Mouse.current.delta.ReadValue();
 
-
         //마우스 X좌표 이동 -> yaw제어(캐릭터 좌우 회전값)
         yaw += mouse.x * sensitivity * Time.deltaTime;
         //마우스 Y좌표이동 -> Pitch제어(캐릭터 상하 회전값)
@@ -75,7 +81,10 @@ public class CameraController : MonoBehaviour
         Quaternion cameraRotation = Quaternion.Euler(pitch, yaw, 0f);
 
         // 카메라 등뒤 위치 계산.
-        Vector3 offset = Vector3.up * cameraHeight + Vector3.back * cameraBackDistance + Vector3.right * cameraShoulderOffset;
+        Vector3 offset =
+            Vector3.up * cameraHeight +
+            Vector3.back * cameraBackDistance +
+            Vector3.right * cameraShoulderOffset;
 
         // 기본 위치 저장
         Vector3 cameraNormalPos = player.position + cameraRotation * offset;
@@ -100,8 +109,12 @@ public class CameraController : MonoBehaviour
             transform.position = finalPos;
         }
         else
-        {   //기존 Lerp보간을 이용한 부드러운 카메라 연출.
-            transform.position = Vector3.Lerp(transform.position, finalPos, Time.deltaTime * cameraLerpSpeed); // 기존 보간
+        {
+            // [CHANGE] 전환 순간에는 고정값(100), 평소에는 cameraLerpSpeed 적용
+            float spd = transitionBoost ? TRANSITION_LERP_SPEED : cameraLerpSpeed;
+
+            //기존 Lerp보간을 이용한 부드러운 카메라 연출.
+            transform.position = Vector3.Lerp(transform.position, finalPos, Time.deltaTime * spd);
         }
 
         transform.rotation = cameraRotation;
@@ -115,7 +128,6 @@ public class CameraController : MonoBehaviour
             right = transform.right,
             up = transform.up
         };
-
     }
 
     // 마스크(벽,천장) 충돌시 시 Z축 보정 전용 함수
@@ -134,7 +146,6 @@ public class CameraController : MonoBehaviour
     //전환부 이동시 카메라 보간 OFF하고 직접 초기화. (TransitionController.cs에서 호출)
     public void SnapToPlayerInstant()
     {
-
         yaw = player.eulerAngles.y;
         Quaternion rot = Quaternion.Euler(pitch, yaw, 0);
 
@@ -154,4 +165,7 @@ public class CameraController : MonoBehaviour
         snapMode = false;
     }
 
+    // [ADD] 전환 순간 보간 speed 부스트 ON/OFF
+    public void BeginTransitionBoost() => transitionBoost = true;
+    public void EndTransitionBoost() => transitionBoost = false;
 }

@@ -6,192 +6,229 @@ public class Enemy3_StareKill : MonoBehaviour
     [Header("Refs")]
     public LoopManager loop;
     NavMeshAgent agent;
-    EnemySensor sensor;
+    EnemySensol sensor;
     Transform player;
 
-    [Header("Player (Layer)")]
-    public string playerLayerName = "Player";
-    int playerLayerIndex = -1;
-
     [Header("Settings")]
-    public float stareTimeToCharge = 4f;
+    public float chargeTime = 1.0f;       // Strong 연속 유지 시간
     public float killDistance = 1.1f;
-    public float faceSpeed = 8f;
+    public float repathInterval = 0.15f;
 
-    float stare;
-    bool charging;
     bool active;
+    bool chargingDone;
+    float chargeAccum;
+    float repathTimer;
 
-    // ===== Common Stare =====
-    bool commonStareActive;
-
+    // ✅ Spawn
     Vector3 spawnPos;
     Quaternion spawnRot;
+    bool hasSpawn;
 
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-        sensor = GetComponent<EnemySensor>();
-
-        playerLayerIndex = LayerMask.NameToLayer(playerLayerName);
-        player = FindPlayerByLayerIndex(playerLayerIndex);
-
+        sensor = GetComponent<EnemySensol>();
         if (!loop) loop = FindObjectOfType<LoopManager>();
 
+        // Player는 CharacterController 루트로 고정
+        var cc = Object.FindFirstObjectByType<CharacterController>();
+        player = cc ? cc.transform : null;
+
+        // ✅ 최초 위치 저장
         spawnPos = transform.position;
         spawnRot = transform.rotation;
+        hasSpawn = true;
 
-        Deactivate();
-    }
-
-    void OnTriggerEnter(Collider other)
-    {
-        if (playerLayerIndex < 0) return;
-        if (other.gameObject.layer != playerLayerIndex) return;
-
-        player = other.transform.root;
+        active = false;
+        chargingDone = false;
+        StopMove();
     }
 
     public void Activate()
     {
-        if (player == null && playerLayerIndex >= 0)
-            player = FindPlayerByLayerIndex(playerLayerIndex);
-
-        if (!agent || !sensor || player == null)
+        if (!player)
         {
-            Debug.LogWarning("[Enemy3_StareKill] Activate failed: agent/sensor/player missing", this);
-            enabled = false;
+            var cc = Object.FindFirstObjectByType<CharacterController>();
+            player = cc ? cc.transform : null;
+        }
+
+        if (!agent || !sensor || !player)
+        {
+            active = false;
+            chargingDone = false;
+            StopMove();
             return;
         }
 
-        CancelInvoke();
-        StopAllCoroutines();
+        EnsureOnNavMesh();
 
         active = true;
-        stare = 0f;
-        charging = false;
+        chargingDone = false;
+        chargeAccum = 0f;
+        repathTimer = 0f;
 
-        if (agent.isOnNavMesh)
-            agent.isStopped = true;
-
-        enabled = true;
+        StopMove();
     }
 
     public void Deactivate()
     {
-        CancelInvoke();
-        StopAllCoroutines();
-
         active = false;
-        commonStareActive = false;
-
-        if (agent && agent.isOnNavMesh)
-            agent.isStopped = true;
-
-        enabled = false;
+        chargingDone = false;
+        StopMove();
     }
 
     public void ResetEnemy()
     {
-        CancelInvoke();
-        StopAllCoroutines();
-
-        stare = 0f;
-        charging = false;
-        active = false;
-        commonStareActive = false;
-
-        if (agent && agent.isOnNavMesh)
-            agent.isStopped = true;
-
-        transform.SetPositionAndRotation(spawnPos, spawnRot);
-
-        if (agent && !agent.isOnNavMesh)
-        {
-            if (NavMesh.SamplePosition(transform.position, out var hit, 1.0f, NavMesh.AllAreas))
-                transform.position = hit.position;
-        }
-
-        enabled = false;
+        InternalFullReset(toSpawn: true);
     }
 
-    public void StartCommonStare()
+    // ✅ Transition 직후 호출(EnemyController.OnTransitionResetAll)
+    public void OnTransitionReset()
     {
-        if (player == null && playerLayerIndex >= 0)
-            player = FindPlayerByLayerIndex(playerLayerIndex);
-
-        commonStareActive = true;
-        enabled = true;
-    }
-
-    public void StopCommonStare()
-    {
-        commonStareActive = false;
-        if (!active) enabled = false;
+        InternalFullReset(toSpawn: true);
     }
 
     void Update()
     {
-        if (player == null) return;
+        if (!active) return;
+        if (!agent || !sensor || !player) return;
+        if (!EnsureOnNavMesh()) return;
 
-        if (commonStareActive)
+        // 1) charge가 아직 안 끝났으면 Strong 연속 유지로만 누적
+        if (!chargingDone)
         {
-            FacePlayer(6f);
+            if (sensor.state == EnemySensol.State.Strong)
+            {
+                chargeAccum += Time.deltaTime;
+
+                if (chargeAccum >= chargeTime)
+                {
+                    chargingDone = true;
+
+                    // 달성 순간 즉시 돌진 시작
+                    ResumeMove();
+                    agent.SetDestination(player.position);
+                    repathTimer = repathInterval;
+                }
+                else
+                {
+                    StopMove();
+                }
+            }
+            else
+            {
+                // Strong이 끊기면 charge 리셋(연속 조건)
+                chargeAccum = 0f;
+                StopMove();
+            }
+
             return;
         }
 
-        if (!active) return;
-        if (!agent || !agent.isOnNavMesh) return;
+        // 2) 돌진 상태: Strong/Weak/Blind 무시하고 계속 추적
+        ResumeMove();
 
-        FacePlayer(faceSpeed);
-
-        bool seen = sensor.state == EnemySensor.State.Strong || sensor.state == EnemySensor.State.Weak;
-
-        if (!charging)
-        {
-            if (seen) stare += Time.deltaTime;
-
-            if (stare >= stareTimeToCharge)
-            {
-                charging = true;
-                agent.isStopped = false;
-            }
-        }
-        else
+        repathTimer -= Time.deltaTime;
+        if (repathTimer <= 0f)
         {
             agent.SetDestination(player.position);
-
-            if (Vector3.Distance(transform.position, player.position) <= killDistance)
-                DoKill();
+            repathTimer = repathInterval;
         }
-    }
 
-    void FacePlayer(float speed)
-    {
-        Vector3 dir = (player.position - transform.position);
-        dir.y = 0;
-        if (dir.sqrMagnitude < 0.0001f) return;
-
-        Quaternion target = Quaternion.LookRotation(dir.normalized, Vector3.up);
-        transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * speed);
-    }
-
-    void DoKill()
-    {
-        loop?.OnEnemyKill();
-        Deactivate();
-    }
-
-    Transform FindPlayerByLayerIndex(int layerIndex)
-    {
-        if (layerIndex < 0) return null;
-
-        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
-        for (int i = 0; i < all.Length; i++)
+        if (Vector3.Distance(transform.position, player.position) <= killDistance)
         {
-            if (all[i].gameObject.layer == layerIndex)
-                return all[i];
+            loop?.OnEnemyKill();
+            Deactivate();
         }
-        return null;
+    }
+
+    // =========================
+    // Reset / Spawn
+    // =========================
+
+    void InternalFullReset(bool toSpawn)
+    {
+        active = false;
+        chargingDone = false;
+        chargeAccum = 0f;
+        repathTimer = 0f;
+
+        StopMoveHard();
+
+        if (toSpawn)
+            ResetToSpawn();
+    }
+
+    void ResetToSpawn()
+    {
+        if (!hasSpawn) return;
+
+        // 1) Transform 복원
+        transform.SetPositionAndRotation(spawnPos, spawnRot);
+
+        // 2) NavMesh 위로 스냅 + Warp 동기화
+        if (agent && agent.enabled)
+        {
+            if (NavMesh.SamplePosition(spawnPos, out var hit, 2.0f, NavMesh.AllAreas))
+            {
+                agent.Warp(hit.position);
+            }
+
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.ResetPath();
+                agent.velocity = Vector3.zero;
+            }
+        }
+    }
+
+    // =========================
+    // NavMesh Move Control
+    // =========================
+
+    void StopMove()
+    {
+        if (!agent || !agent.enabled) return;
+        if (!agent.isOnNavMesh) return;
+
+        agent.isStopped = true;
+        agent.ResetPath();
+        agent.velocity = Vector3.zero;
+    }
+
+    void StopMoveHard()
+    {
+        if (!agent || !agent.enabled) return;
+
+        // NavMesh 위면 확실히 정리
+        if (agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
+        }
+        // NavMesh 밖이면 ResetToSpawn에서 SamplePosition/Warp로 회복
+    }
+
+    void ResumeMove()
+    {
+        if (!agent || !agent.enabled) return;
+        if (!agent.isOnNavMesh) return;
+
+        agent.isStopped = false;
+    }
+
+    bool EnsureOnNavMesh()
+    {
+        if (!agent || !agent.enabled) return false;
+        if (agent.isOnNavMesh) return true;
+
+        if (NavMesh.SamplePosition(transform.position, out var hit, 1.5f, NavMesh.AllAreas))
+        {
+            agent.Warp(hit.position);
+            return agent.isOnNavMesh;
+        }
+        return false;
     }
 }

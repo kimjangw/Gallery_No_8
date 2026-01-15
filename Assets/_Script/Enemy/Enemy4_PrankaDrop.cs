@@ -1,142 +1,86 @@
 using UnityEngine;
 
-public class Enemy4_PrankaDrop : MonoBehaviour
+public class Enemy3_FlyForward : MonoBehaviour
 {
-    [Header("Refs")]
-    public LoopManager loop;
-    Transform player;
+    [Header("Move Target")]
+    public Transform moveRoot;   // ✅ 실제로 날릴 메쉬 루트(예: MCh_S_12... 또는 ZBrush_default_group)
 
-    [Header("Player (Layer)")]
-    public string playerLayerName = "Player";
-    int playerLayerIndex = -1;
+    [Header("Move")]
+    public float flySpeed = 18f;
+    public float flyDuration = 0.7f; // 이 시간 후 종료
 
-    [Header("Settings")]
-    public float existTime = 3f;
-
-    float t;
     bool active;
-
-    // ===== Common Stare =====
-    bool commonStareActive;
+    Transform player;
+    Vector3 dir;
+    float t;
 
     Vector3 spawnPos;
     Quaternion spawnRot;
 
     void Awake()
     {
-        if (!loop) loop = FindObjectOfType<LoopManager>();
+        // ✅ moveRoot 미지정이면 "첫 번째 Renderer"를 자동으로 잡아줌 (자식 메시 루트)
+        if (!moveRoot)
+        {
+            var r = GetComponentInChildren<Renderer>();
+            if (r) moveRoot = r.transform;
+            else moveRoot = transform;
+        }
 
-        playerLayerIndex = LayerMask.NameToLayer(playerLayerName);
-        player = FindPlayerByLayerIndex(playerLayerIndex);
+        // ✅ 플레이어는 CC 루트로 고정
+        var cc = Object.FindFirstObjectByType<CharacterController>();
+        player = cc ? cc.transform : null;
 
-        spawnPos = transform.position;
-        spawnRot = transform.rotation;
+        spawnPos = moveRoot.position;
+        spawnRot = moveRoot.rotation;
 
-        Deactivate();
-    }
-
-    void OnTriggerEnter(Collider other)
-    {
-        if (playerLayerIndex < 0) return;
-        if (other.gameObject.layer != playerLayerIndex) return;
-
-        player = other.transform.root;
+        active = false;
     }
 
     public void Activate()
     {
-        if (player == null && playerLayerIndex >= 0)
-            player = FindPlayerByLayerIndex(playerLayerIndex);
-
-        CancelInvoke();
-        StopAllCoroutines();
+        if (!player)
+        {
+            var cc = Object.FindFirstObjectByType<CharacterController>();
+            player = cc ? cc.transform : null;
+        }
+        if (!player) { active = false; return; }
 
         active = true;
         t = 0f;
-        enabled = true;
 
-        // 낙하/출현 연출 시작 지점
+        // ✅ Player 진행 방향
+        dir = player.forward;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f) dir = Vector3.forward;
+        dir.Normalize();
+
+        // 연출: 날아가는 방향을 바라보게(원치 않으면 삭제)
+        moveRoot.rotation = Quaternion.LookRotation(dir, Vector3.up);
     }
 
     public void Deactivate()
     {
-        CancelInvoke();
-        StopAllCoroutines();
-
         active = false;
-        commonStareActive = false;
-
-        enabled = false;
     }
 
+    // Transition 라인 넘어가면 ResetAll이 호출될 테니 이걸로 복귀
     public void ResetEnemy()
     {
-        CancelInvoke();
-        StopAllCoroutines();
-
-        t = 0f;
         active = false;
-        commonStareActive = false;
-
-        transform.SetPositionAndRotation(spawnPos, spawnRot);
-        enabled = false;
-    }
-
-    public void StartCommonStare()
-    {
-        if (player == null && playerLayerIndex >= 0)
-            player = FindPlayerByLayerIndex(playerLayerIndex);
-
-        commonStareActive = true;
-        enabled = true;
-    }
-
-    public void StopCommonStare()
-    {
-        commonStareActive = false;
-        if (!active) enabled = false;
+        t = 0f;
+        moveRoot.SetPositionAndRotation(spawnPos, spawnRot);
     }
 
     void Update()
     {
-        if (player == null) return;
-
-        if (commonStareActive)
-        {
-            FacePlayer(6f);
-            return;
-        }
-
         if (!active) return;
 
+        float step = flySpeed * Time.deltaTime;
+        moveRoot.position += dir * step;
+
         t += Time.deltaTime;
-        if (t >= existTime)
-        {
-            loop?.OnEnemyEnd();
+        if (t >= flyDuration)
             Deactivate();
-        }
-    }
-
-    void FacePlayer(float speed)
-    {
-        Vector3 dir = (player.position - transform.position);
-        dir.y = 0f;
-        if (dir.sqrMagnitude < 0.0001f) return;
-
-        Quaternion target = Quaternion.LookRotation(dir.normalized, Vector3.up);
-        transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * speed);
-    }
-
-    Transform FindPlayerByLayerIndex(int layerIndex)
-    {
-        if (layerIndex < 0) return null;
-
-        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
-        for (int i = 0; i < all.Length; i++)
-        {
-            if (all[i].gameObject.layer == layerIndex)
-                return all[i];
-        }
-        return null;
     }
 }
