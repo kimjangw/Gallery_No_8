@@ -6,7 +6,7 @@ public class Enemy2_TeleportStalker : MonoBehaviour
     [Header("Refs")]
     public LoopManager loop;
     NavMeshAgent agent;
-    EnemySensor sensor;
+    EnemySensol sensor;
     Transform player;
 
     [Header("Player (Layer)")]
@@ -33,7 +33,7 @@ public class Enemy2_TeleportStalker : MonoBehaviour
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-        sensor = GetComponent<EnemySensor>();
+        sensor = GetComponent<EnemySensol>();
 
         playerLayerIndex = LayerMask.NameToLayer(playerLayerName);
         player = FindPlayerByLayerIndex(playerLayerIndex);
@@ -146,7 +146,7 @@ public class Enemy2_TeleportStalker : MonoBehaviour
 
         cd -= Time.deltaTime;
 
-        if (sensor.state == EnemySensor.State.Blind && cd <= 0f)
+        if (sensor.state == EnemySensol.State.Blind && cd <= 0f)
         {
             cd = blindCooldown;
             TeleportBehind();

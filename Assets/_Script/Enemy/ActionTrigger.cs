@@ -1,57 +1,64 @@
 using System.Collections;
 using UnityEngine;
 
-public class ActionTrigger: MonoBehaviour
+public class ActionTrigger : MonoBehaviour
 {
     [Header("Refs")]
-    public LoopManager loopManager;           // 씬의 LoopManager 연결
-    public EnemyController enemyController;   // Enemy 빈부모의 EnemyController 연결
+    public LoopManager loopManager;
+    public EnemyController enemyController;
 
-    [Header("Random Delay (No Pattern)")]
+    [Header("Random Delay")]
     public float minDelay = 0.5f;
     public float maxDelay = 2.5f;
 
     [Header("Options")]
-    public bool oneShotPerLoop = true;  // 루프당 1회만 발동
-    public bool requireMonster = true; // 이번 루프에 몬스터 없으면 무시
+    public bool requireMonster = true;
 
-    bool fired;
+    // ===== flag 잠금 =====
+    bool locked;
+    Coroutine co;
 
     void Awake()
     {
-        // 인스펙터 연결 권장. 비워두면 자동 탐색.
         if (!loopManager) loopManager = FindObjectOfType<LoopManager>();
         if (!enemyController) enemyController = FindObjectOfType<EnemyController>();
     }
 
     void OnTriggerEnter(Collider other)
     {
-        if (oneShotPerLoop && fired) return;
+        if (locked) return;
         if (other.gameObject.layer != LayerMask.NameToLayer("Player")) return;
 
         if (requireMonster && loopManager != null && loopManager.hasMonster == false)
             return;
 
-        fired = true;
+        locked = true;
 
-        StopAllCoroutines(); // [ADD] 중복 코루틴 방지
-        StartCoroutine(CoRandomDelayThenActivate());
+        if (co != null) StopCoroutine(co);
+        co = StartCoroutine(CoDelayThenAction());
     }
 
-    IEnumerator CoRandomDelayThenActivate()
+    IEnumerator CoDelayThenAction()
     {
         float d = Random.Range(minDelay, maxDelay);
         yield return new WaitForSeconds(d);
 
-        Debug.Log($"[ActionTrigger] calling ActivateOne on {enemyController.name}", enemyController);
-        // Enemy 쪽은 기존대로: 랜덤 Enemy 선택 + 즉시 활성
-        enemyController?.ActivateOne();
+        // Transition에서 잠금이 풀렸으면(즉, 구간이 바뀌었으면) 실행하지 않음
+        if (!locked) yield break;
+
+        Debug.Log($"[ActionTrigger] DoAction on {enemyController.name}", enemyController);
+        enemyController?.DoAction();
     }
 
-    // 루프 리셋/층 변경 시 다시 트리거 사용 가능하게 하고 싶으면 호출
-    public void ResetTrigger()
+    // TransitionController에서 호출: 구간 전환 시 잠금 해제 + 대기 코루틴 제거
+    public void UnlockForNextSection()
     {
-        fired = false;
-        StopAllCoroutines();
+        locked = false;
+
+        if (co != null)
+        {
+            StopCoroutine(co);
+            co = null;
+        }
     }
 }

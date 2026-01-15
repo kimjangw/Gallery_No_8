@@ -38,7 +38,7 @@ public class PlayerSensor : MonoBehaviour
         {
             if (enemy == null) continue;
 
-            EnemySensor es = enemy.GetComponent<EnemySensor>();
+            EnemySensol  es = enemy.GetComponent<EnemySensol >();
             if (!es) continue;
 
             Vector3 ePos = enemy.position;
@@ -82,9 +82,9 @@ public class PlayerSensor : MonoBehaviour
             }
 
             // 상태 결정
-            if (es.flashSeen) es.state = EnemySensor.State.Strong;
-            else if (es.cameraSeen) es.state = EnemySensor.State.Weak;
-            else es.state = EnemySensor.State.Blind;
+            if (es.flashSeen) es.state = EnemySensol.State.Strong;
+            else if (es.cameraSeen) es.state = EnemySensol.State.Weak;
+            else es.state = EnemySensol.State.Blind;
 
             es.distance = dist;
         }

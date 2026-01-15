@@ -6,193 +6,180 @@ public class Enemy1_Weeping : MonoBehaviour
     [Header("Refs")]
     public LoopManager loop;
     NavMeshAgent agent;
-    EnemySensor sensor;
+    EnemySensol sensor;
     Transform player;
-
-    [Header("Player (Layer)")]
-    public string playerLayerName = "Player";
-    int playerLayerIndex = -1;
 
     [Header("Settings")]
     public float killTime = 10f;
     public float killDistance = 1.2f;
-    public bool weakCountsAsUnseen = true;
+    public float repathInterval = 0.2f;
 
-    float t;
     bool active;
+    float t;
+    float repathTimer;
 
-    // ===== Common Stare (공통패턴) =====
-    bool commonStareActive;
-
-    Vector3 spawnPos;
-    Quaternion spawnRot;
+    [Header("Debug")]
+    public bool debug = true;
+    public float debugInterval = 0.5f;
+    float dbgTimer;
 
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-        sensor = GetComponent<EnemySensor>();
-
-        playerLayerIndex = LayerMask.NameToLayer(playerLayerName);
-        player = FindPlayerByLayerIndex(playerLayerIndex);
-
+        sensor = GetComponent<EnemySensol>();
         if (!loop) loop = FindObjectOfType<LoopManager>();
 
-        spawnPos = transform.position;
-        spawnRot = transform.rotation;
+        // ✅ Player는 CharacterController 루트로 고정 (본 잡는 문제 제거)
+        var cc = Object.FindFirstObjectByType<CharacterController>();
+        player = cc ? cc.transform : null;
 
-        Deactivate();
-    }
-
-    // (선택) Trigger Collider가 있다면 플레이어 확정 등록
-    void OnTriggerEnter(Collider other)
-    {
-        if (playerLayerIndex < 0) return;
-        if (other.gameObject.layer != playerLayerIndex) return;
-
-        player = other.transform.root;
+        active = false;
+        StopMove();
     }
 
     public void Activate()
     {
-        if (player == null && playerLayerIndex >= 0)
-            player = FindPlayerByLayerIndex(playerLayerIndex);
-
-        if (!agent || !sensor || player == null)
+        // 혹시 Start/Awake 순서로 못 잡았으면 재획득
+        if (!player)
         {
-            Debug.LogWarning("[Enemy1_Weeping] Activate failed: agent/sensor/player missing", this);
-            enabled = false;
+            var cc = Object.FindFirstObjectByType<CharacterController>();
+            player = cc ? cc.transform : null;
+        }
+
+        active = (agent && sensor && player);
+        if (!active)
+        {
+            Dump("ActivateFailed");
+            StopMove();
             return;
         }
 
-        CancelInvoke();
-        StopAllCoroutines();
+        EnsureOnNavMesh();
 
-        active = true;
         t = 0f;
+        repathTimer = 0f;
 
-        if (agent.isOnNavMesh)
-            agent.isStopped = false;
+        // 시작은 일단 멈춤(Strong이면 계속 멈춤, Blind면 다음 Update에서 움직임)
+        StopMove();
 
-        enabled = true;
+        Dump("ActivateOK");
     }
 
     public void Deactivate()
     {
-        CancelInvoke();
-        StopAllCoroutines();
-
         active = false;
-        commonStareActive = false;
-
-        if (agent && agent.isOnNavMesh)
-            agent.isStopped = true;
-
-        enabled = false;
+        StopMove();
+        Dump("Deactivate");
     }
 
     public void ResetEnemy()
     {
-        CancelInvoke();
-        StopAllCoroutines();
-
-        t = 0f;
         active = false;
-        commonStareActive = false;
-
-        if (agent && agent.isOnNavMesh)
-            agent.isStopped = true;
-
-        transform.SetPositionAndRotation(spawnPos, spawnRot);
-
-        // 스폰이 NavMesh 밖으로 밀리는 경우 방지 (선택)
-        if (agent && !agent.isOnNavMesh)
-        {
-            if (NavMesh.SamplePosition(transform.position, out var hit, 1.0f, NavMesh.AllAreas))
-                transform.position = hit.position;
-        }
-
-        enabled = false;
-    }
-
-    // ===== 공통패턴(랜덤 1개가 나를 쳐다봄) 지원 =====
-    public void StartCommonStare()
-    {
-        if (player == null && playerLayerIndex >= 0)
-            player = FindPlayerByLayerIndex(playerLayerIndex);
-
-        commonStareActive = true;
-        enabled = true;
-    }
-
-    public void StopCommonStare()
-    {
-        commonStareActive = false;
-
-        if (!active)
-            enabled = false;
+        t = 0f;
+        repathTimer = 0f;
+        StopMove();
+        Dump("Reset");
     }
 
     void Update()
     {
-        if (player == null) return;
+        // 디버그 주기
+        dbgTimer -= Time.deltaTime;
 
-        // 공통 Stare 우선권: 회전만
-        if (commonStareActive)
+        if (!active)
         {
-            FacePlayer(6f);
+            if (dbgTimer <= 0f) { Dump("Return:!active"); dbgTimer = debugInterval; }
             return;
         }
 
-        if (!active) return;
-        if (!agent || !agent.isOnNavMesh) return;
-
-        var st = sensor.state;
-
-        // Strong(확실히 보임)일 때 멈춤
-        if (st == EnemySensor.State.Strong)
+        if (!agent || !sensor || !player)
         {
-            agent.isStopped = true;
+            if (dbgTimer <= 0f) { Dump("Return:missingRef"); dbgTimer = debugInterval; }
             return;
         }
+
+        if (!EnsureOnNavMesh())
+        {
+            if (dbgTimer <= 0f) { Dump("Return:!onNavMesh"); dbgTimer = debugInterval; }
+            return;
+        }
+
+        // ✅ Strong일 때만 멈춤 (요구사항)
+        if (sensor.state == EnemySensol.State.Strong)
+        {
+            StopMove();
+            if (dbgTimer <= 0f) { Dump("Stop:Strong"); dbgTimer = debugInterval; }
+            return;
+        }
+
+        // ✅ Weak/Blind 이동
+        ResumeMove();
+
+        repathTimer -= Time.deltaTime;
+        if (repathTimer <= 0f)
+        {
+            bool ok = agent.SetDestination(player.position);
+            repathTimer = repathInterval;
+
+            if (dbgTimer <= 0f)
+            {
+                Dump(ok ? "SetDest:OK" : "SetDest:FAILED");
+                dbgTimer = debugInterval;
+            }
+        }
+
+        t += Time.deltaTime;
+
+        if (Vector3.Distance(transform.position, player.position) <= killDistance || t >= killTime)
+        {
+            loop?.OnEnemyKill();
+            Deactivate();
+        }
+    }
+
+    void StopMove()
+    {
+        if (!agent || !agent.enabled) return;
+        if (!agent.isOnNavMesh) return;
+
+        agent.isStopped = true;
+        agent.ResetPath();
+        agent.velocity = Vector3.zero;
+    }
+
+    void ResumeMove()
+    {
+        if (!agent || !agent.enabled) return;
+        if (!agent.isOnNavMesh) return;
 
         agent.isStopped = false;
-        agent.SetDestination(player.position);
-
-        bool unseen = (st == EnemySensor.State.Blind) || (weakCountsAsUnseen && st == EnemySensor.State.Weak);
-        if (unseen) t += Time.deltaTime;
-
-        if (t >= killTime || Vector3.Distance(transform.position, player.position) <= killDistance)
-            DoKill();
     }
 
-    void FacePlayer(float speed)
+    bool EnsureOnNavMesh()
     {
-        if (player == null) return;
+        if (!agent || !agent.enabled) return false;
+        if (agent.isOnNavMesh) return true;
 
-        Vector3 dir = (player.position - transform.position);
-        dir.y = 0f;
-        if (dir.sqrMagnitude < 0.0001f) return;
-
-        Quaternion target = Quaternion.LookRotation(dir.normalized, Vector3.up);
-        transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * speed);
-    }
-
-    void DoKill()
-    {
-        loop?.OnEnemyKill();
-        Deactivate();
-    }
-
-    Transform FindPlayerByLayerIndex(int layerIndex)
-    {
-        if (layerIndex < 0) return null;
-
-        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
-        for (int i = 0; i < all.Length; i++)
+        if (NavMesh.SamplePosition(transform.position, out var hit, 1.5f, NavMesh.AllAreas))
         {
-            if (all[i].gameObject.layer == layerIndex)
-                return all[i];
+            agent.Warp(hit.position);
+            return agent.isOnNavMesh;
         }
-        return null;
+        return false;
+    }
+
+    void Dump(string reason)
+    {
+        if (!debug) return;
+
+        string st = sensor ? sensor.state.ToString() : "NULL";
+        string p = player ? player.name : "NULL";
+
+        string nav =
+            agent
+            ? $"enabled={agent.enabled} onNavMesh={agent.isOnNavMesh} isStopped={agent.isStopped} speed={agent.speed} hasPath={agent.hasPath} pending={agent.pathPending} status={agent.pathStatus}"
+            : "agent=NULL";
+
+        //Debug.Log($"[Enemy1DBG] {name} reason={reason} active={active} state={st} player={p} | {nav}", this);
     }
 }

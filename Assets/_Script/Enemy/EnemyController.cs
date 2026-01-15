@@ -7,20 +7,24 @@ public class EnemyController : MonoBehaviour
     int pickedIndex = -1;
     public bool HasPicked => pickedIndex >= 0;
 
-    // [ADD] 기존 LoopManager 호환용
+    // 기존 LoopManager 호환용 (그대로 유지)
     public void ActivateOne()
     {
         Debug.Log($"[EnemyController] ActivateOne on {name}", this);
-        print("ActiveOne");
         PickOne();
         ActivatePicked();
     }
 
-    // [ADD] 트리거 방식 준비용 (선정만)
+    // [ADD] ActionTrigger에서 의미 중립적으로 호출할 별칭
+    public void DoAction()
+    {
+        ActivateOne();
+    }
+
+    // (기존 유지) 트리거 방식 준비용 (선정만)
     public void PrepareOne()
     {
         PickOne();
-        print("선택");
     }
 
     public void PickOne()
@@ -29,7 +33,7 @@ public class EnemyController : MonoBehaviour
 
         DeactivateAll();
         pickedIndex = Random.Range(0, enemies.Length);
-        print("현재 패턴" + pickedIndex);
+        Debug.Log($"[EnemyController] pickedIndex={pickedIndex}", this);
     }
 
     public void ActivatePicked()
@@ -70,24 +74,29 @@ public class EnemyController : MonoBehaviour
             return;
         }
         mb.Invoke(method, 0f);
+
+        // ✅ 추가: 해당 컴포넌트에 메서드가 실제 있는지 검사
+        var mi = mb.GetType().GetMethod(method, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+        if (mi == null)
+        {
+            Debug.LogWarning($"[EnemyController] '{method}' NOT FOUND on {mb.GetType().Name} (GO={mb.gameObject.name})", mb);
+            return;
+        }
+
+        mb.Invoke(method, 0f);
+        Debug.Log($"[EnemyController] Invoked {method} on {mb.GetType().Name} (GO={mb.gameObject.name})", mb);
+
     }
 
-
-    // =====================================================================
-    // [ADD] 공통패턴: 랜덤 Enemy가 나를 쳐다봄
-    // - duration초 동안만 실행
-    // - Enemy 스크립트에 StartCommonStare / StopCommonStare 메서드가 있어야 함
-    // =====================================================================
+    // (기존 유지) 공통패턴
     public void StartRandomStareCommon(float duration)
     {
         if (enemies == null || enemies.Length == 0) return;
 
         int idx = Random.Range(0, enemies.Length);
 
-        // 공통패턴 시작
         enemies[idx].Invoke("StartCommonStare", 0f);
 
-        // duration 후 종료
         if (duration > 0f)
             enemies[idx].Invoke("StopCommonStare", duration);
     }
