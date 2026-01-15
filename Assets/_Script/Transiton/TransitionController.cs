@@ -45,6 +45,8 @@ public class TransitionController : MonoBehaviour
 
         loopManager.ResetFixLine();
 
+        loopManager.enemyController?.OnTransitionResetAll();
+
         // [ADD] 전환 완료 시점에 ActionTrigger 잠금 해제(다음 구간에서 다시 발동 가능)
         if (actionTriggerToReset != null)
             actionTriggerToReset.UnlockForNextSection();

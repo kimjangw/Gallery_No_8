@@ -141,5 +141,16 @@ public class LoopManager : MonoBehaviour
         //else
         //    enemyController?.DeactivateAll();
     }
+    public void AfterTransitionReset()
+    {
+        // FixLine, Fix 상태 리셋
+        ResetFixLine();
+
+        // Enemy 쪽 “전환 리셋” (타이머/경로/상태 등)
+        enemyController?.OnTransitionResetAll();
+
+        // 필요하면: 다음 구간 트리거 재무장 등 (ActionTrigger를 여기에 모으거나)
+        // ex) actionTrigger.UnlockForNextSection(); 를 여기서 호출하도록 구조화 가능
+    }
 
 }

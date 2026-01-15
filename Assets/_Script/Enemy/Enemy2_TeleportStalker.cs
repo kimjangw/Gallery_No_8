@@ -27,8 +27,10 @@ public class Enemy2_TeleportStalker : MonoBehaviour
     // ===== Common Stare =====
     bool commonStareActive;
 
+    // ✅ Spawn
     Vector3 spawnPos;
     Quaternion spawnRot;
+    bool hasSpawn;
 
     void Awake()
     {
@@ -40,8 +42,10 @@ public class Enemy2_TeleportStalker : MonoBehaviour
 
         if (!loop) loop = FindObjectOfType<LoopManager>();
 
+        // ✅ 최초 위치 저장
         spawnPos = transform.position;
         spawnRot = transform.rotation;
+        hasSpawn = true;
 
         Deactivate();
     }
@@ -73,8 +77,7 @@ public class Enemy2_TeleportStalker : MonoBehaviour
         count = 0;
         cd = 0f;
 
-        if (agent && agent.isOnNavMesh)
-            agent.isStopped = true;
+        StopAgentHard();
 
         enabled = true;
     }
@@ -87,34 +90,22 @@ public class Enemy2_TeleportStalker : MonoBehaviour
         active = false;
         commonStareActive = false;
 
-        if (agent && agent.isOnNavMesh)
-            agent.isStopped = true;
+        StopAgentHard();
 
         enabled = false;
     }
 
     public void ResetEnemy()
     {
-        CancelInvoke();
-        StopAllCoroutines();
+        // 완전 초기화(최초 위치까지)
+        InternalFullReset(toSpawn: true);
+    }
 
-        count = 0;
-        cd = 0f;
-        active = false;
-        commonStareActive = false;
-
-        if (agent && agent.isOnNavMesh)
-            agent.isStopped = true;
-
-        transform.SetPositionAndRotation(spawnPos, spawnRot);
-
-        if (agent && !agent.isOnNavMesh)
-        {
-            if (NavMesh.SamplePosition(transform.position, out var hit, 1.0f, NavMesh.AllAreas))
-                transform.position = hit.position;
-        }
-
-        enabled = false;
+    // ✅ Transition 직후 호출(EnemyController.OnTransitionResetAll)
+    public void OnTransitionReset()
+    {
+        // 전환 시점도 완전 초기화 + 스폰 복귀
+        InternalFullReset(toSpawn: true);
     }
 
     public void StartCommonStare()
@@ -167,7 +158,7 @@ public class Enemy2_TeleportStalker : MonoBehaviour
 
         if (NavMesh.SamplePosition(desired, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
         {
-            if (agent && agent.isOnNavMesh) agent.Warp(hit.position);
+            if (agent && agent.enabled && agent.isOnNavMesh) agent.Warp(hit.position);
             else transform.position = hit.position;
 
             FacePlayer(999f);
@@ -189,6 +180,74 @@ public class Enemy2_TeleportStalker : MonoBehaviour
     {
         loop?.OnEnemyKill();
         Deactivate();
+    }
+
+    // =========================
+    // Reset / Agent helpers
+    // =========================
+
+    void InternalFullReset(bool toSpawn)
+    {
+        CancelInvoke();
+        StopAllCoroutines();
+
+        count = 0;
+        cd = 0f;
+        active = false;
+        commonStareActive = false;
+
+        StopAgentHard();
+
+        if (toSpawn)
+            ResetToSpawn();
+
+        enabled = false;
+    }
+
+    void StopAgentHard()
+    {
+        if (!agent || !agent.enabled) return;
+
+        if (agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
+        }
+        else
+        {
+            // NavMesh 밖이면 여기서 path 조작 불가. Transform만 정리하고,
+            // ResetToSpawn에서 SamplePosition/Warp로 복구함.
+        }
+    }
+
+    void ResetToSpawn()
+    {
+        if (!hasSpawn) return;
+
+        // 1) Transform 복원
+        transform.SetPositionAndRotation(spawnPos, spawnRot);
+
+        // 2) NavMesh 위로 스냅 + Warp 동기화
+        if (agent && agent.enabled)
+        {
+            if (NavMesh.SamplePosition(spawnPos, out var hit, 2.0f, NavMesh.AllAreas))
+            {
+                // Warp가 가장 확실하게 Agent 내부 좌표까지 동기화
+                agent.Warp(hit.position);
+            }
+
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.ResetPath();
+                agent.velocity = Vector3.zero;
+            }
+        }
+        else
+        {
+            // agent 없으면 transform 복원으로 끝
+        }
     }
 
     Transform FindPlayerByLayerIndex(int layerIndex)

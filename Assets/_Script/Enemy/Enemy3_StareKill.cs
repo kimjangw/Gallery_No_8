@@ -10,14 +10,19 @@ public class Enemy3_StareKill : MonoBehaviour
     Transform player;
 
     [Header("Settings")]
-    public float chargeTime = 1.0f;       // ✅ Strong 연속 유지 시간
+    public float chargeTime = 1.0f;       // Strong 연속 유지 시간
     public float killDistance = 1.1f;
     public float repathInterval = 0.15f;
 
     bool active;
-    bool chargingDone;   // chargeTime 달성 후 돌진 상태
+    bool chargingDone;
     float chargeAccum;
     float repathTimer;
+
+    // ✅ Spawn
+    Vector3 spawnPos;
+    Quaternion spawnRot;
+    bool hasSpawn;
 
     void Awake()
     {
@@ -28,6 +33,11 @@ public class Enemy3_StareKill : MonoBehaviour
         // Player는 CharacterController 루트로 고정
         var cc = Object.FindFirstObjectByType<CharacterController>();
         player = cc ? cc.transform : null;
+
+        // ✅ 최초 위치 저장
+        spawnPos = transform.position;
+        spawnRot = transform.rotation;
+        hasSpawn = true;
 
         active = false;
         chargingDone = false;
@@ -57,7 +67,6 @@ public class Enemy3_StareKill : MonoBehaviour
         chargeAccum = 0f;
         repathTimer = 0f;
 
-        // 처음엔 멈춤(Strong로 charge 쌓일 때까지 대기)
         StopMove();
     }
 
@@ -70,11 +79,13 @@ public class Enemy3_StareKill : MonoBehaviour
 
     public void ResetEnemy()
     {
-        active = false;
-        chargingDone = false;
-        chargeAccum = 0f;
-        repathTimer = 0f;
-        StopMove();
+        InternalFullReset(toSpawn: true);
+    }
+
+    // ✅ Transition 직후 호출(EnemyController.OnTransitionResetAll)
+    public void OnTransitionReset()
+    {
+        InternalFullReset(toSpawn: true);
     }
 
     void Update()
@@ -94,20 +105,19 @@ public class Enemy3_StareKill : MonoBehaviour
                 {
                     chargingDone = true;
 
-                    // ✅ 달성 순간 즉시 돌진 시작
+                    // 달성 순간 즉시 돌진 시작
                     ResumeMove();
                     agent.SetDestination(player.position);
                     repathTimer = repathInterval;
                 }
                 else
                 {
-                    // Strong 유지 중에는 계속 대기(정지)
                     StopMove();
                 }
             }
             else
             {
-                // Strong이 끊기면 charge 리셋(“연속” 조건)
+                // Strong이 끊기면 charge 리셋(연속 조건)
                 chargeAccum = 0f;
                 StopMove();
             }
@@ -133,8 +143,50 @@ public class Enemy3_StareKill : MonoBehaviour
     }
 
     // =========================
+    // Reset / Spawn
+    // =========================
+
+    void InternalFullReset(bool toSpawn)
+    {
+        active = false;
+        chargingDone = false;
+        chargeAccum = 0f;
+        repathTimer = 0f;
+
+        StopMoveHard();
+
+        if (toSpawn)
+            ResetToSpawn();
+    }
+
+    void ResetToSpawn()
+    {
+        if (!hasSpawn) return;
+
+        // 1) Transform 복원
+        transform.SetPositionAndRotation(spawnPos, spawnRot);
+
+        // 2) NavMesh 위로 스냅 + Warp 동기화
+        if (agent && agent.enabled)
+        {
+            if (NavMesh.SamplePosition(spawnPos, out var hit, 2.0f, NavMesh.AllAreas))
+            {
+                agent.Warp(hit.position);
+            }
+
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.ResetPath();
+                agent.velocity = Vector3.zero;
+            }
+        }
+    }
+
+    // =========================
     // NavMesh Move Control
     // =========================
+
     void StopMove()
     {
         if (!agent || !agent.enabled) return;
@@ -143,6 +195,20 @@ public class Enemy3_StareKill : MonoBehaviour
         agent.isStopped = true;
         agent.ResetPath();
         agent.velocity = Vector3.zero;
+    }
+
+    void StopMoveHard()
+    {
+        if (!agent || !agent.enabled) return;
+
+        // NavMesh 위면 확실히 정리
+        if (agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
+        }
+        // NavMesh 밖이면 ResetToSpawn에서 SamplePosition/Warp로 회복
     }
 
     void ResumeMove()
