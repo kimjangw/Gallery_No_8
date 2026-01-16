@@ -16,6 +16,14 @@ public class TransitionController : MonoBehaviour
     public TransitionHub hub;
     public TransitionHub linkedHub;
 
+    int playerLayer;
+    bool isTransitioning;
+
+    void Awake()
+    {
+        playerLayer = LayerMask.NameToLayer("Player");
+    }
+
     void OnTriggerEnter(Collider other)
     {
         if (other.gameObject.layer != LayerMask.NameToLayer("Player"))
@@ -41,8 +49,7 @@ public class TransitionController : MonoBehaviour
 
         cc.enabled = true;
 
-        // 선택: 전환 프레임에 1회 정렬 (원하면 유지, 아니면 삭제해도 됨)
-        cameraController.SnapToPlayerInstant();
+        cameraController.SnapAfterTransition();
 
         loopManager.ResetFixLine();
         loopManager.enemyController?.OnTransitionResetAll();

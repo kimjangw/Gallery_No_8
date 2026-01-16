@@ -6,17 +6,6 @@ public class CameraController : MonoBehaviour
     // 기준이 될 플레이어 Transform
     public Transform player;
 
-    // 카메라 측에서 보는 값을 다른 스크립트로 전달.
-    public CameraView CurrentView { get; private set; }
-    public struct CameraView
-    {
-        public float pitch;
-        public float yaw;
-        public Vector3 forward;
-        public Vector3 right;
-        public Vector3 up;
-    }
-
     // TPS 카메라 오프셋
     [Header("CameraOffset")]
     public float cameraBackDistance = 1.1f;   // 뒤
@@ -29,19 +18,29 @@ public class CameraController : MonoBehaviour
     public float minPitch = -25f;
     public float maxPitch = 25f;
 
-    // 벽뚫기 방지(충돌 보정)
+    // 벽뚫기 방지(충돌 보정용)
     [Header("Camera Collision")]
-    public LayerMask collisionMask;
+    [SerializeField] private LayerMask collisionMask;   // [CHANGE] private로 내림
     public float collisionRadius = 0.01f;
     public float collisionBuffer = 1f;
-
-    // [CHANGE] 항상 빠르게 붙도록 고정 (인스펙터 노출 X)
-    // - 100이면 거의 즉시 붙는 느낌
-    [SerializeField] private float lerpSpeed = 100f;
+    // 카메라 추적 스피드
+    private float lerpSpeed = 100f;
 
     // 플레이어 좌/우 회전(yaw), 카메라 상/하(pitch)
     public float yaw;
     float pitch = 10f;
+
+    // 카메라 측에서 보는 값을 다른 스크립트로 전달.
+    public CameraView CurrentView { get; private set; }
+    public struct CameraView
+    {
+        public float pitch;
+        public float yaw;
+        public Vector3 forward;
+        public Vector3 right;
+        public Vector3 up;
+    }
+
 
     void Start()
     {
@@ -52,8 +51,10 @@ public class CameraController : MonoBehaviour
         // 플레이어 최초 yaw 세팅
         if (player) yaw = player.eulerAngles.y;
 
-        // 기본 마스크 세팅(필요하면 인스펙터에서 덮어써도 됨)
-        collisionMask = LayerMask.GetMask("Wall", "Ceiling");
+        // 기본 마스크 세팅
+        if (collisionMask == 0)
+        { collisionMask = LayerMask.GetMask("Wall", "Ceiling", "Ground"); }
+          
     }
 
     void LateUpdate()
@@ -63,7 +64,7 @@ public class CameraController : MonoBehaviour
         // 마우스 입력
         Vector2 mouse = Mouse.current.delta.ReadValue();
 
-        // yaw/pitch 갱신
+        // yaw, pitch 갱신
         yaw += mouse.x * sensitivity * Time.deltaTime;
         pitch -= mouse.y * sensitivity * Time.deltaTime;
         pitch = Mathf.Clamp(pitch, minPitch, maxPitch);
@@ -74,29 +75,20 @@ public class CameraController : MonoBehaviour
         // 카메라 회전
         Quaternion cameraRotation = Quaternion.Euler(pitch, yaw, 0f);
 
-        // 카메라 오프셋(등 뒤 + 어깨)
-        Vector3 offset =
-            Vector3.up * cameraHeight +
-            Vector3.back * cameraBackDistance +
-            Vector3.right * cameraShoulderOffset;
-
-        // 기본 목표 위치
-        Vector3 cameraNormalPos = player.position + cameraRotation * offset;
+        // 목표 위치
+        Vector3 finalPos = player.position + cameraRotation * GetBaseCameraOffset();
 
         // 충돌 체크 기준
         Vector3 cameraPivot = player.position + Vector3.up * cameraHeight;
         Vector3 cameraBackDir = cameraRotation * Vector3.back;
 
-        Vector3 finalPos = cameraNormalPos;
-
         // SphereCast로 벽/천장 충돌 시 앞으로 당김
-        if (Physics.SphereCast(cameraPivot, collisionRadius, cameraBackDir,
-            out RaycastHit hit, cameraBackDistance, collisionMask))
+        if (Physics.SphereCast(cameraPivot, collisionRadius, cameraBackDir, out RaycastHit hit, cameraBackDistance, collisionMask))
         {
-            finalPos = CorrectCameraPositionOnCollision(cameraPivot, cameraBackDir, hit);
+            finalPos = CorrectCameraPositionOnCollision(cameraRotation, hit);
         }
 
-        // [CHANGE] 항상 빠른 Lerp로 추종(전환/평상시 동일)
+        //카메라의 포지션을 보간을 이용해 부드럽게 플레이어 추적
         transform.position = Vector3.Lerp(transform.position, finalPos, Time.deltaTime * lerpSpeed);
         transform.rotation = cameraRotation;
 
@@ -111,33 +103,38 @@ public class CameraController : MonoBehaviour
         };
     }
 
-    // 벽/천장 충돌 시 카메라 위치 보정(앞으로 당김)
-    Vector3 CorrectCameraPositionOnCollision(Vector3 cameraPivot, Vector3 cameraBackDir, RaycastHit hit)
+    // 카메라의 기본 TPS 오프셋(오른쪽 어깨 위에서 조금 뒤)
+    Vector3 GetBaseCameraOffset()
     {
-        float safeDist = Mathf.Max(hit.distance - collisionBuffer, 0.05f);
-
-        // 보정 위치 계산
-        Vector3 correctedPos = cameraPivot + cameraBackDir * safeDist;
-
-        // [권장] Y는 pivot 기준으로 고정(전환 직후 흔들림 완화)
-        correctedPos.y = cameraPivot.y;
-
-        return correctedPos;
+        return Vector3.up * cameraHeight
+             + Vector3.back * cameraBackDistance
+             + Vector3.right * cameraShoulderOffset;
     }
 
-    // 전환 직후 “즉시” 맞추고 싶으면 호출(선택)
-    // - 항상 100으로 붙을 거면 사실 없어도 됨.
-    public void SnapToPlayerInstant()
+    // 벽, 천장 충돌 시 카메라 위치 보정(앞으로 당김)
+    Vector3 CorrectCameraPositionOnCollision(Quaternion cameraRotation, RaycastHit hit)
+    {
+        // 벽까지 거리에서 buffer를 뺀 "가능한 뒤로 거리"
+        float safeBack = Mathf.Max(hit.distance - collisionBuffer, 0.05f);
+
+        // 카메라를 안정거리까지 당길수 있는 거리 계산
+        Vector3 correctedOffset =
+            Vector3.up * cameraHeight +
+            Vector3.right * cameraShoulderOffset +
+            Vector3.back * safeBack;
+
+        //충돌시 당기는 거리 보정.
+        return player.position + cameraRotation * correctedOffset;
+    }
+
+    // Transition직후 카메라 재위치(TransitionController.cs에서 사용)
+    public void SnapAfterTransition()
     {
         if (!player) return;
 
-        Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
+        Quaternion cameraTargetRotation = Quaternion.Euler(pitch, yaw, 0f);
+        Vector3 cameraTargetPosition = player.position + cameraTargetRotation * GetBaseCameraOffset();
 
-        Vector3 offset =
-            Vector3.up * cameraHeight +
-            Vector3.back * cameraBackDistance +
-            Vector3.right * cameraShoulderOffset;
-
-        transform.SetPositionAndRotation(player.position + rot * offset, rot);
+        transform.SetPositionAndRotation(cameraTargetPosition, cameraTargetRotation);
     }
 }
