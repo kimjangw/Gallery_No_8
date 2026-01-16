@@ -8,34 +8,43 @@ public class TransitionController : MonoBehaviour
     public CameraController cameraController;
     public LoopManager loopManager;
 
-    // [ADD] 전환 시 ActionTrigger의 flag를 풀어주기 위한 참조
     [Header("ActionTrigger Reset")]
-    public ActionTrigger actionTriggerToReset;
+    public ActionTrigger actionTrigger;
 
     [Header("Portal Hub")]
     public TransitionHub hub;
-    public TransitionHub linkedHub;
+
+    int playerLayer;
+    bool isTransitioning;
+
+    void Awake()
+    {
+        playerLayer = LayerMask.NameToLayer("Player");
+    }
 
     void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.layer != LayerMask.NameToLayer("Player"))
-            return;
+        // Player 체크
+        if (other.gameObject.layer != playerLayer) return;
 
-        if (hub.locked) return;
+        // 전환 중이면 무시 (중복 진입 방지)
+        if (isTransitioning) return;
+
+        // 허브가 잠겨있으면 이동 금지
+        if (hub.IsLocked()) return;
 
         Teleport();
     }
 
     void Teleport()
     {
-        hub.locked = true;
-        linkedHub.locked = true;
+        // 중복 방지 가드
+        isTransitioning = true;
 
-        // [ADD] 전환 구간: 카메라 보간 speed만 임시로 상승
-        cameraController.BeginTransitionBoost();
+        // 양쪽 Hub동시 Lock (Hub터치해야 UnLock)
+        hub.SetLocked(true);
 
-        loopManager.OnTransition(hub);
-
+        // 캐릭터 위치 꼬임 방지
         cc.enabled = false;
 
         Vector3 pos = player.position;
@@ -44,20 +53,21 @@ public class TransitionController : MonoBehaviour
 
         cc.enabled = true;
 
-        cameraController.SnapToPlayerInstant();
+        // 전환 직후 카메라 재정렬
+        cameraController.SnapAfterTransition();
 
+        // loopManager 루프 판정/상태 갱신 
+        loopManager.OnTransition(hub);
+
+        //FixLine도 UnLock
         loopManager.ResetFixLine();
-        loopManager.enemyController?.OnTransitionResetAll();
+        //Enemy들 초기화.
+        loopManager.enemyController.OnTransitionResetAll();
 
-        if (actionTriggerToReset != null)
-            actionTriggerToReset.UnlockForNextSection();
+        //ActionTrigger도 재활성
+        actionTrigger.UnlockForNextSection();
 
-        // [ADD] 다음 프레임부터는 원래 speed로 복귀 (즉시 끄면 같은 프레임 Lerp에 영향이 없을 수 있어 0프레임 딜레이)
-        Invoke(nameof(EndCameraBoost), 0f);
-    }
-
-    void EndCameraBoost()
-    {
-        cameraController.EndTransitionBoost();
+        // 가드 해제
+        isTransitioning = false;
     }
 }

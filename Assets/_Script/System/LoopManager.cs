@@ -2,94 +2,92 @@ using UnityEngine;
 
 public class LoopManager : MonoBehaviour
 {
+    [Header("Pattern State")]
     public bool hasMonster = false; // 층별 몬스터 존재 여부
     public int floor = 0;           // 0층 = 둘러보기층
+
+    [Header("Refs")]
     public EnemyController enemyController;
     public System.Action<int> OnFloorChanged;
 
-    TransitionHub fixedHub = null;
+    [Header("FixLines (Inspector Assign)")]
+    public FixLine[] fixLines;  // FindObjectsByType 금지 -> 인스펙터로 넣기
+
+    // Fix state
     bool fixCommitted = false;
     public bool FixCommitted => fixCommitted;
-    public void OnFix(TransitionHub hub)
+
+    bool fixedSideA = false;
+    public bool FixedSideA => fixedSideA;
+
+    public void OnFix(bool sideA)
     {
-        if (fixCommitted) return; // 이미 Fix 됐다면 덮어쓰기 금지
+        if (fixCommitted) return;
 
-        fixedHub = hub;
         fixCommitted = true;
+        fixedSideA = sideA;
 
-        Debug.Log($"[FIX] Fix위치={(hub.isA ? "A측" : "B측")}");
+        Debug.Log($"[FIX] Fix위치={(sideA ? "A측" : "B측")}");
     }
 
     public void OnTransition(TransitionHub transHub)
     {
-        // 0층일 때는 정답 판정 없이 1층 진입
+        // 0층 처리(유지)
         if (floor == 0)
         {
             floor = 1;
             SetupPattern();
-            Debug.Log("[TRANS] 0층 종료 → 1층 시작");
             OnFloorChanged?.Invoke(floor);
-
-            if (hasMonster)
-                enemyController?.ActivateOne(); // ← 단일 Enemy 활성
-            else
-                enemyController?.DeactivateAll(); // ← Idle
-
+            ApplyEnemyByPattern();
             return;
         }
 
-        // 1층 이상인데 Fix 없는 경우는 설계상 비정상
-        if (fixedHub == null)
+        // Fix 전이라면: 판정하지 말고 매 Transition마다 새 패턴 세팅(당신 설계 유지)
+        if (!fixCommitted)
         {
-            Debug.LogWarning("[TRANS] Fix 없이 Transition (설계 확인 필요)");
+            SetupPattern();
+            ApplyEnemyByPattern();
             return;
         }
 
-        bool usedFix = (transHub == fixedHub);
+        // Fix 후에만 정답/오답 판정
+        bool usedSideA = transHub.sideA;          // 실제 선택
+        bool usedFix = (usedSideA == fixedSideA); // Fix와 일치했는가
 
-        Debug.Log(
-            $"[TRANS] 위치={(transHub.isA ? "A측" : "B측")}" +
-            $" | Fix={(fixedHub.isA ? "A측" : "B측")}" +
-            $" | usedFix={(usedFix ? "사용됨" : "사용안됨")}"
-        );
-
-        // 정답 공식:
-        // 몬스터 있으면 → Fix가 정답
-        // 몬스터 없으면 → Non-Fix가 정답
         bool correct = hasMonster ? usedFix : !usedFix;
 
-        Debug.Log($"[판정] 몬스터={hasMonster} → 결과={(correct ? "정답" : "오답")}");
+        if (correct) floor++;
+        else floor = 1;
 
-        if (correct)
-        {
-            floor++;
-            Debug.Log($"[층 갱신] 정답 → floor={floor}");
-            OnFloorChanged?.Invoke(floor);
-        }
-        else
-        {
-            floor = 1; // 틀리면 1층으로 리셋
-            Debug.Log("[층 갱신] 오답 → 1층으로 리셋");
-            OnFloorChanged?.Invoke(floor);
-        }
+        OnFloorChanged?.Invoke(floor);
 
-        // Fix 초기화 후 다음 패턴 설정
-        fixedHub = null;
+        // Fix는 한 번 판정했으면 해제
+        fixCommitted = false;
+
+        // 다음 패턴 세팅
         SetupPattern();
+        ApplyEnemyByPattern();
+    }
 
-        if (hasMonster)
-            enemyController?.ActivateOne();
-        else
-            enemyController?.DeactivateAll();
-
+    void ApplyEnemyByPattern()
+    {
+        if (hasMonster) enemyController?.ActivateOne();
+        else enemyController?.DeactivateAll();
     }
 
     public void ResetFixLine()
     {
-        foreach (var fix in Object.FindObjectsByType<FixLine>(FindObjectsSortMode.None))
-            fix.ResetFix();
+        // FindObjectsByType 금지 -> 인스펙터 배열만 순회
+        if (fixLines != null)
+        {
+            for (int i = 0; i < fixLines.Length; i++)
+            {
+                if (fixLines[i] != null)
+                    fixLines[i].ResetFix();
+            }
+        }
 
-        fixedHub = null;
+        // Fix 상태도 초기화
         fixCommitted = false;
     }
 
@@ -107,50 +105,28 @@ public class LoopManager : MonoBehaviour
         Debug.Log($"[패턴] {floor}층 → 몬스터={(hasMonster ? "있음" : "없음")}");
     }
 
-
     public void OnEnemyKill()
     {
         Debug.Log("[LOOP] Kill 발생 → Loop Reset");
 
-        // Enemy 초기화
         enemyController?.ResetAll();
 
-        // Kill은 무조건 1층으로 리셋 (설계 반영 가능)
         floor = 1;
         SetupPattern();
-
-        // 새 Loop 시작
-        if (hasMonster)
-            enemyController?.ActivateOne();
-        else
-            enemyController?.DeactivateAll();
+        ApplyEnemyByPattern();
     }
-
 
     public void OnEnemyEnd()
     {
         Debug.Log("[LOOP] 패턴 종료 → Loop 진행");
-
         enemyController?.ResetAll();
-
-        //floor++;
-        //SetupPattern();
-
-        //if (hasMonster)
-        //    enemyController?.ActivateOne();
-        //else
-        //    enemyController?.DeactivateAll();
     }
+
     public void AfterTransitionReset()
     {
-        // FixLine, Fix 상태 리셋
+        // Transition 직후 공통 리셋
         ResetFixLine();
-
-        // Enemy 쪽 “전환 리셋” (타이머/경로/상태 등)
         enemyController?.OnTransitionResetAll();
-
-        // 필요하면: 다음 구간 트리거 재무장 등 (ActionTrigger를 여기에 모으거나)
-        // ex) actionTrigger.UnlockForNextSection(); 를 여기서 호출하도록 구조화 가능
+        // ActionTrigger도 나중에 여기로 합치면 됨
     }
-
 }

@@ -240,8 +240,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38e13c19be5737246bb8e9318965c18d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  hub: {fileID: 234457841}
   loopManager: {fileID: 286086521}
+  sideA: 1
 --- !u!1 &10598485
 GameObject:
   m_ObjectHideFlags: 0
@@ -760,7 +760,7 @@ Transform:
   m_GameObject: {fileID: 214335783}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 2.0287476, y: 2.1, z: -64.8}
+  m_LocalPosition: {x: 2.0287476, y: 2.1, z: -64.79}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1064,7 +1064,7 @@ Transform:
   m_GameObject: {fileID: 234457835}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 10, z: 0.03}
+  m_LocalPosition: {x: 0, y: 10, z: 0.015}
   m_LocalScale: {x: 1, y: 18, z: 0.01}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1156,8 +1156,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f60e3c6f5459ba4f9e4f51d7ca55188, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  linkedHub: {fileID: 1287768518}
   locked: 0
-  isA: 1
 --- !u!4 &240557895 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8276081391987928223, guid: 780d340bd8578d54f80ca5409d087ef6, type: 3}
@@ -2106,7 +2106,7 @@ Transform:
   m_GameObject: {fileID: 392924073}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.7071068, z: 0.7071068, w: 0}
-  m_LocalPosition: {x: 2.0287476, y: 2.1, z: 35}
+  m_LocalPosition: {x: 2.0287476, y: 2.1, z: 35.1}
   m_LocalScale: {x: 0.4, y: 1.1, z: 0.39500004}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3104,7 +3104,7 @@ Transform:
   m_GameObject: {fileID: 520396750}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -1.9712524, y: 2.1, z: -35}
+  m_LocalPosition: {x: -1.9712524, y: 2.1, z: -35.1}
   m_LocalScale: {x: 0.4, y: 1.1, z: 0.39500004}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3424,7 +3424,7 @@ Transform:
   m_GameObject: {fileID: 632283078}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -1.9712524, y: 2.1, z: 64.8}
+  m_LocalPosition: {x: -1.9712524, y: 2.1, z: 64.79}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -3923,13 +3923,8 @@ MonoBehaviour:
   cc: {fileID: 1205529400}
   cameraController: {fileID: 1326317716}
   loopManager: {fileID: 286086521}
-  actionTriggerToReset: {fileID: 1841785239}
+  actionTrigger: {fileID: 1841785239}
   hub: {fileID: 1287768518}
-  linkedHub: {fileID: 234457841}
-  movementScriptsToPause:
-  - {fileID: 1205529401}
-  pauseFrames: 3
-  debugOverlap: 0
 --- !u!1 &758130983
 GameObject:
   m_ObjectHideFlags: 0
@@ -4051,8 +4046,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 38e13c19be5737246bb8e9318965c18d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  hub: {fileID: 1287768518}
   loopManager: {fileID: 286086521}
+  sideA: 0
 --- !u!4 &758437164 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2480231731423164795, guid: 780d340bd8578d54f80ca5409d087ef6, type: 3}
@@ -4300,7 +4295,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: ae14941dd3c0ed247b92bb7573264366, type: 2}
+  - {fileID: 2100000, guid: affe2d676778c654b93ac5010aa566da, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -5553,7 +5548,7 @@ Transform:
   m_GameObject: {fileID: 1056948148}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -1.9712524, y: 2.1, z: -64.8}
+  m_LocalPosition: {x: -1.9712524, y: 2.1, z: -64.79}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6704,7 +6699,7 @@ Transform:
   m_GameObject: {fileID: 1287768516}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 10, z: -0.03}
+  m_LocalPosition: {x: 0, y: 10, z: -0.015}
   m_LocalScale: {x: 1, y: 18, z: 0.01}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -6722,8 +6717,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f60e3c6f5459ba4f9e4f51d7ca55188, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  linkedHub: {fileID: 234457841}
   locked: 0
-  isA: 0
 --- !u!65 &1287768519
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -7023,10 +7018,9 @@ MonoBehaviour:
   maxPitch: 25
   collisionMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 448
   collisionRadius: 0.01
   collisionBuffer: 0.1
-  cameraLerpSpeed: 12
   yaw: 0
 --- !u!1 &1341617473
 GameObject:
@@ -7053,7 +7047,7 @@ Transform:
   m_GameObject: {fileID: 1341617473}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 2.0287476, y: 2.1, z: 64.8}
+  m_LocalPosition: {x: 2.0287476, y: 2.1, z: 64.79}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7721,7 +7715,7 @@ Transform:
   m_GameObject: {fileID: 1523590971}
   serializedVersion: 2
   m_LocalRotation: {x: 0.7071068, y: -0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: 2.0287476, y: 2.1, z: -35}
+  m_LocalPosition: {x: 2.0287476, y: 2.1, z: -35.1}
   m_LocalScale: {x: 0.4, y: 1.1, z: 0.39500004}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -7792,6 +7786,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemies:
+  - {fileID: 1016215963}
+  - {fileID: 2081129675}
+  - {fileID: 2102081395}
+  - {fileID: 1575715005}
   - {fileID: 922265557}
 --- !u!4 &1545025518 stripped
 Transform:
@@ -8651,7 +8649,7 @@ Transform:
   m_GameObject: {fileID: 1595004279}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0.7071068, z: 0.7071068, w: 0}
-  m_LocalPosition: {x: -1.9712524, y: 2.1, z: 35}
+  m_LocalPosition: {x: -1.9712524, y: 2.1, z: 35.1}
   m_LocalScale: {x: 0.4, y: 1.1, z: 0.39500004}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -9098,13 +9096,8 @@ MonoBehaviour:
   cc: {fileID: 1205529400}
   cameraController: {fileID: 1326317716}
   loopManager: {fileID: 286086521}
-  actionTriggerToReset: {fileID: 1841785239}
+  actionTrigger: {fileID: 1841785239}
   hub: {fileID: 234457841}
-  linkedHub: {fileID: 1287768518}
-  movementScriptsToPause:
-  - {fileID: 1205529401}
-  pauseFrames: 3
-  debugOverlap: 0
 --- !u!4 &1832561690 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -4484586303138264298, guid: 780d340bd8578d54f80ca5409d087ef6, type: 3}
