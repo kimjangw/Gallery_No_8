@@ -4296,7 +4296,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: ae14941dd3c0ed247b92bb7573264366, type: 2}
+  - {fileID: 2100000, guid: affe2d676778c654b93ac5010aa566da, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -7022,7 +7022,7 @@ MonoBehaviour:
     m_Bits: 0
   collisionRadius: 0.01
   collisionBuffer: 0.1
-  cameraLerpSpeed: 12
+  lerpSpeed: 100
   yaw: 0
 --- !u!1 &1341617473
 GameObject:
@@ -7788,6 +7788,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemies:
+  - {fileID: 1016215963}
+  - {fileID: 2081129675}
+  - {fileID: 2102081395}
+  - {fileID: 1575715005}
   - {fileID: 922265557}
 --- !u!4 &1545025518 stripped
 Transform:
