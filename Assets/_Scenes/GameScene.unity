@@ -1157,6 +1157,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   linkedHub: {fileID: 1287768518}
+  sideA: 0
   locked: 0
 --- !u!4 &240557895 stripped
 Transform:
@@ -1262,6 +1263,10 @@ MonoBehaviour:
   hasMonster: 0
   floor: 0
   enemyController: {fileID: 1542684677}
+  floorDisplayA: {fileID: 850098690}
+  floorDisplayB: {fileID: 310864525}
+  fixLineA: {fileID: 4189024}
+  fixLineB: {fileID: 758130989}
 --- !u!4 &301468672 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -484444037552573092, guid: 780d340bd8578d54f80ca5409d087ef6, type: 3}
@@ -1422,7 +1427,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   text: {fileID: 310864523}
-  loop: {fileID: 286086521}
 --- !u!1 &335162863
 GameObject:
   m_ObjectHideFlags: 0
@@ -4495,7 +4499,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   text: {fileID: 850098688}
-  loop: {fileID: 286086521}
 --- !u!4 &858776782 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -5273446966595472559, guid: 780d340bd8578d54f80ca5409d087ef6, type: 3}
@@ -6718,6 +6721,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   linkedHub: {fileID: 234457841}
+  sideA: 0
   locked: 0
 --- !u!65 &1287768519
 BoxCollider:
