@@ -1,221 +1,238 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-public class Enemy1_Weeping : MonoBehaviour
+public class Enemy1_Weeping : MonoBehaviour, EnemyPattern
 {
-    [Header("Refs")]
-    public LoopManager loop;
-    NavMeshAgent agent;
-    EnemySensol sensor;
-    Transform player;
+    [Header("Refs (Inspector)")]
+    public LoopManager loopManager;     // Kill 신호용
+    public EnemySensol enemySensol;     // PlayerSensor가 써주는 데이터 컨테이너
+    public Transform player;            // CC 루트(인스펙터 주입 권장)
 
-    [Header("Settings")]
+    [Header("Visual States (Inspector)")]
+    public GameObject idleObj;          // Idle(다른 동상이 선택중일 때)
+    public GameObject pointObj;         // Point(선택되었을 때)
+    public GameObject attackObj;         // Attack(추적 시작)
+
+    [Header("Point")]
+    public float pointDuration = 0.8f;  // Ready()에서 포인팅 유지 시간
+
+    [Header("Attack Settings")]
     public float killTime = 10f;
     public float killDistance = 1.2f;
     public float repathInterval = 0.2f;
 
-    bool active;
+    [Header("NavMesh Safety")]
+    public float navSampleRadius = 1.5f;
+    public float spawnSampleRadius = 2.0f;
+
+    NavMeshAgent agent;
+
+    // 상태
+    bool actionStarted;     // StartAction 이후 true
+    bool isPointing;        // Ready() 직후 pointDuration 동안 true
+    float pointTimer;
+
     float t;
     float repathTimer;
 
-    [Header("Debug")]
-    public bool debug = true;
-    public float debugInterval = 0.5f;
-    float dbgTimer;
-
-    // ✅ 최초 위치/회전 저장
     Vector3 spawnPos;
     Quaternion spawnRot;
-    bool hasSpawn;
 
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
-        sensor = GetComponent<EnemySensol>();
-        if (!loop) loop = FindObjectOfType<LoopManager>();
 
-        // ✅ Player는 CharacterController 루트로 고정
-        var cc = Object.FindFirstObjectByType<CharacterController>();
-        player = cc ? cc.transform : null;
+        if (!enemySensol) enemySensol = GetComponent<EnemySensol>();
 
-        // ✅ 스폰 위치 저장(씬에 배치된 최초 위치)
         spawnPos = transform.position;
         spawnRot = transform.rotation;
-        hasSpawn = true;
 
-        active = false;
-        StopMove();
+        ResetInternalState();
+        SetStateIdle();
+        StopAgent();
     }
 
-    public void Activate()
-    {
-        // 혹시 Start/Awake 순서로 못 잡았으면 재획득
-        if (!player)
-        {
-            var cc = Object.FindFirstObjectByType<CharacterController>();
-            player = cc ? cc.transform : null;
-        }
+    // =========================================================
+    // EnemyPattern
+    // =========================================================
 
-        active = (agent && sensor && player);
-        if (!active)
-        {
-            Dump("ActivateFailed");
-            StopMove();
-            return;
-        }
+    // 루프에서 선택되었을 때: "Point"를 1회 보여준다(행동 시작 아님)
+    public void Ready()
+    {
+        ResetInternalState();
+
+        // Point 시작
+        isPointing = true;
+        pointTimer = pointDuration;
+
+        SetStatePoint();
+        SnapFacePlayer();     // 요구: 로테이션은 즉시 플레이어를 바라보게
 
         EnsureOnNavMesh();
-
-        t = 0f;
-        repathTimer = 0f;
-
-        // 시작은 일단 멈춤(Strong이면 계속 멈춤, Weak/Blind면 Update에서 이동)
-        StopMove();
-
-        Dump("ActivateOK");
+        StopAgent();
     }
 
-    public void Deactivate()
+    // ActionTrigger 신호: 실제 추적(Attack) 시작
+    public void StartAction()
     {
-        active = false;
-        StopMove();
-        Dump("Deactivate");
-    }
+        ResetInternalState();
 
-    public void ResetEnemy()
-    {
-        // ✅ 완전 초기화: 최초 위치까지 되돌림
-        active = false;
-        t = 0f;
-        repathTimer = 0f;
+        actionStarted = true;
+        isPointing = false;
 
-        ResetToSpawn();
+        SetStateAttack();
+        SnapFacePlayer();
 
-        Dump("Reset");
-    }
-
-    // ✅ 전환 직후 호출되는 리셋 훅(EnemyController.OnTransitionResetAll에서 호출)
-    public void OnTransitionReset()
-    {
-        active = false;
-        t = 0f;
-        repathTimer = 0f;
-
-        ResetToSpawn();
-
-        Dump("OnTransitionReset");
-    }
-
-    void Update()
-    {
-        dbgTimer -= Time.deltaTime;
-
-        if (!active)
+        if (agent == null || enemySensol == null || player == null)
         {
-            if (dbgTimer <= 0f) { Dump("Return:!active"); dbgTimer = debugInterval; }
-            return;
-        }
-
-        if (!agent || !sensor || !player)
-        {
-            if (dbgTimer <= 0f) { Dump("Return:missingRef"); dbgTimer = debugInterval; }
+            Deactivate();
             return;
         }
 
         if (!EnsureOnNavMesh())
         {
-            if (dbgTimer <= 0f) { Dump("Return:!onNavMesh"); dbgTimer = debugInterval; }
+            Deactivate();
             return;
         }
 
-        // ✅ Strong일 때만 멈춤
-        if (sensor.state == EnemySensol.State.Strong)
+        agent.isStopped = false;
+        agent.ResetPath();
+        agent.velocity = Vector3.zero;
+    }
+
+    // 패턴 중지(상태만 정리)
+    public void Deactivate()
+    {
+        ResetInternalState();
+        SetStateIdle();
+        StopAgent();
+    }
+
+    // 강제 리셋(스폰 복귀 + Idle)
+    public void ResetEnemy()
+    {
+        ResetToSpawn();
+        Deactivate();
+    }
+
+    // 트랜지션 직후(스폰 복귀 + Idle)
+    public void OnTransitionReset()
+    {
+        ResetToSpawn();
+        Deactivate();
+    }
+
+    // =========================================================
+    // Update
+    // =========================================================
+
+    void Update()
+    {
+        // 1) Ready()에서 Point를 보여주는 타이머
+        if (isPointing)
         {
-            StopMove();
-            if (dbgTimer <= 0f) { Dump("Stop:Strong"); dbgTimer = debugInterval; }
+            pointTimer -= Time.deltaTime;
+            if (pointTimer <= 0f)
+            {
+                isPointing = false;
+
+                // 아직 StartAction 전이면 Idle 비주얼로 복귀
+                // (추적 시작은 StartAction에서만)
+                if (!actionStarted)
+                    SetStateIdle();
+            }
+        }
+
+        // 2) StartAction 이후에만 추적 로직
+        if (!actionStarted) return;
+
+        if (agent == null || enemySensol == null || player == null) return;
+        if (!EnsureOnNavMesh()) return;
+
+        // Strong이면 정지(추적 금지)
+        if (enemySensol.state == EnemySensol.State.Strong)
+        {
+            StopAgent();
             return;
         }
 
-        // ✅ Weak/Blind 이동
-        ResumeMove();
+        // Weak/Blind이면 이동
+        agent.isStopped = false;
 
         repathTimer -= Time.deltaTime;
         if (repathTimer <= 0f)
         {
-            bool ok = agent.SetDestination(player.position);
+            agent.SetDestination(player.position);
             repathTimer = repathInterval;
-
-            if (dbgTimer <= 0f)
-            {
-                Dump(ok ? "SetDest:OK" : "SetDest:FAILED");
-                dbgTimer = debugInterval;
-            }
         }
 
         t += Time.deltaTime;
 
         if (Vector3.Distance(transform.position, player.position) <= killDistance || t >= killTime)
         {
-            loop?.OnEnemyKill();
+            if (loopManager != null) loopManager.OnEnemyKill();
             Deactivate();
         }
     }
 
-    // ========================================================================
-    // Spawn Reset
-    // ========================================================================
+    // =========================================================
+    // Visual State
+    // =========================================================
 
-    void ResetToSpawn()
+    void SetStateIdle()
     {
-        if (!hasSpawn) return;
-
-        // 1) NavMeshAgent 안전 정지/경로 제거
-        if (agent && agent.enabled)
-        {
-            if (agent.isOnNavMesh)
-            {
-                agent.isStopped = true;
-                agent.ResetPath();
-                agent.velocity = Vector3.zero;
-            }
-        }
-
-        // 2) Transform 복원
-        transform.SetPositionAndRotation(spawnPos, spawnRot);
-
-        // 3) Agent 위치 동기화(가능하면 Warp)
-        if (agent && agent.enabled)
-        {
-            // Warp는 NavMesh 위에서 가장 안정적. 스폰이 NavMesh 밖일 수도 있으니 샘플 후 Warp.
-            if (NavMesh.SamplePosition(spawnPos, out var hit, 2.0f, NavMesh.AllAreas))
-            {
-                agent.Warp(hit.position);
-            }
-            else
-            {
-                // NavMesh 샘플 실패하면 Transform만 복원된 상태로 두고,
-                // 다음 Activate 시 EnsureOnNavMesh()가 보정하도록 둠.
-            }
-
-            if (agent.isOnNavMesh)
-            {
-                agent.isStopped = true;
-                agent.ResetPath();
-                agent.velocity = Vector3.zero;
-            }
-        }
-
-        // 센서 상태가 전환 후 남아 문제가 된다면, 여기서 별도 리셋을 추가할 수 있음
-        // 예: sensor?.ResetState(); (해당 메서드가 있을 경우)
+        if (idleObj) idleObj.SetActive(true);
+        if (pointObj) pointObj.SetActive(false);
+        if (attackObj) attackObj.SetActive(false);
     }
 
-    // ========================================================================
-    // Movement helpers
-    // ========================================================================
-
-    void StopMove()
+    void SetStatePoint()
     {
-        if (!agent || !agent.enabled) return;
+        if (idleObj) idleObj.SetActive(false);
+        if (pointObj) pointObj.SetActive(true);
+        if (attackObj) attackObj.SetActive(false);
+    }
+
+    void SetStateAttack()
+    {
+        if (idleObj) idleObj.SetActive(false);
+        if (pointObj) pointObj.SetActive(false);
+        if (attackObj) attackObj.SetActive(true);
+    }
+
+    // =========================================================
+    // Rotation
+    // =========================================================
+
+    // 요구: 로테이션은 "즉시" 플레이어를 바라보도록 초기화
+    void SnapFacePlayer()
+    {
+        if (player == null) return;
+
+        Vector3 dir = player.position - transform.position;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.0001f) return;
+
+        transform.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+    }
+
+    // =========================================================
+    // Internal / NavMesh
+    // =========================================================
+
+    void ResetInternalState()
+    {
+        actionStarted = false;
+        isPointing = false;
+        pointTimer = 0f;
+
+        t = 0f;
+        repathTimer = 0f;
+    }
+
+    void StopAgent()
+    {
+        if (agent == null || !agent.enabled) return;
         if (!agent.isOnNavMesh) return;
 
         agent.isStopped = true;
@@ -223,38 +240,36 @@ public class Enemy1_Weeping : MonoBehaviour
         agent.velocity = Vector3.zero;
     }
 
-    void ResumeMove()
-    {
-        if (!agent || !agent.enabled) return;
-        if (!agent.isOnNavMesh) return;
-
-        agent.isStopped = false;
-    }
-
     bool EnsureOnNavMesh()
     {
-        if (!agent || !agent.enabled) return false;
+        if (agent == null || !agent.enabled) return false;
         if (agent.isOnNavMesh) return true;
 
-        if (NavMesh.SamplePosition(transform.position, out var hit, 1.5f, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(transform.position, out var hit, navSampleRadius, NavMesh.AllAreas))
         {
             agent.Warp(hit.position);
             return agent.isOnNavMesh;
         }
+
         return false;
     }
 
-    void Dump(string reason)
+    void ResetToSpawn()
     {
-        if (!debug) return;
+        StopAgent();
+        transform.SetPositionAndRotation(spawnPos, spawnRot);
 
-        // 필요 시 로그 활성화
-        // string st = sensor ? sensor.state.ToString() : "NULL";
-        // string p = player ? player.name : "NULL";
-        // string nav =
-        //     agent
-        //     ? $"enabled={agent.enabled} onNavMesh={agent.isOnNavMesh} isStopped={agent.isStopped} speed={agent.speed} hasPath={agent.hasPath} pending={agent.pathPending} status={agent.pathStatus}"
-        //     : "agent=NULL";
-        // Debug.Log($"[Enemy1DBG] {name} reason={reason} active={active} state={st} player={p} | {nav}", this);
+        if (agent != null && agent.enabled)
+        {
+            if (NavMesh.SamplePosition(spawnPos, out var hit, spawnSampleRadius, NavMesh.AllAreas))
+                agent.Warp(hit.position);
+
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.ResetPath();
+                agent.velocity = Vector3.zero;
+            }
+        }
     }
 }

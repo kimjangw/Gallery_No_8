@@ -4,16 +4,18 @@ using UnityEngine;
 public class FloorDisplay : MonoBehaviour
 {
     public TMP_Text text;
-    public LoopManager loop;
 
     void Start()
     {
-        loop.OnFloorChanged += (floor) =>
-        {
-            text.text = $"{floor}";
-        };
+        SetFloor(0);
+    }
 
-        // 초기 UI 반영
-        text.text = $"{loop.floor}";
+    // LoopManager가 층 변경 시 직접 호출하는 함수
+    public void SetFloor(int floor)
+    {
+        if (text == null) return;
+
+        // 층수 표시
+        text.text = floor.ToString();
     }
 }

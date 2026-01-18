@@ -1,4 +1,3 @@
-using System.Reflection;
 using UnityEngine;
 
 #if UNITY_EDITOR
@@ -6,28 +5,26 @@ using UnityEditor;
 #endif
 
 /// <summary>
-/// Enemy(1~5)에 붙이는 단일 컴포넌트:
-/// - PlayerSensor가 계산한 센서 결과를 저장/노출 (cameraSeen/flashSeen/state/lostEvent/distance)
-/// - EnemyController에서 현재 선택(pickedIndex)을 읽어 isPicked 세팅
-/// - SceneView 라벨 출력
-/// 
-/// 중요: 센서 판정 로직은 PlayerSensor가 "유일하게" 담당한다.
-/// EnemySensol은 계산하지 않는다(덮어쓰기/충돌 방지).
+/// 디버그/참조용 컴포넌트:
+/// - EnemyController의 pickedIndex/HasSelectedEnemy를 읽어 현재 내가 선택된 Enemy인지 표시
+/// - PlayerSensor가 써주는 센서 데이터(flashSeen/cameraSeen/state 등)를 SceneView에 라벨로 출력
+///
+/// 중요: 게임 로직에 영향 주지 않음(읽기 전용)
 /// </summary>
 public class EnemySensol : MonoBehaviour
 {
     /* =========================================================
-     *  Pick Debug (EnemyController 연동)
+     *  EnemyController Pick Debug
      * ========================================================= */
-    [Header("Pick (optional)")]
+    [Header("Pick Debug")]
     public EnemyController enemyController; // 비워두면 자동 탐색
 
-    [Header("Pick Debug")]
     public bool isPicked;
     public int myIndex = -1;
     public int pickedIndex = -1;
 
-    FieldInfo pickedIndexField;
+    // 캐시: enemies 배열이 바뀌지 않는 한 myIndex는 고정
+    MonoBehaviour[] cachedEnemiesArray;
 
     /* =========================================================
      *  Sensor Data (PlayerSensor가 써주는 값)
@@ -35,103 +32,107 @@ public class EnemySensol : MonoBehaviour
     public enum State { Strong, Weak, Blind }
 
     [Header("Sensor Data (Written by PlayerSensor)")]
-    public bool flashSeen;        // PlayerSensor가 세팅
-    public bool cameraSeen;       // PlayerSensor가 세팅
-    public bool prevCameraSeen;   // PlayerSensor가 세팅/사용
-    public bool lostEvent;        // PlayerSensor가 세팅
-    public float distance;        // PlayerSensor가 세팅
-    public State state = State.Blind; // PlayerSensor가 세팅
+    public bool flashSeen;
+    public bool cameraSeen;
+    public bool prevCameraSeen;
+    public bool lostEvent;
+    public float distance;
+    public State state = State.Blind;
 
     /* =========================================================
      *  Label
      * ========================================================= */
     [Header("Label")]
-    public float labelHeight = 4.5f; // 기본값을 위로 올림(원하면 인스펙터에서 조절)
+    public float labelHeight = 4.5f;
 
     void Awake()
     {
         ResolveEnemyController();
-        CacheReflection();
+        CacheMyIndexIfNeeded();
         UpdatePick();
     }
 
     void OnEnable()
     {
         ResolveEnemyController();
-        CacheReflection();
+        CacheMyIndexIfNeeded();
         UpdatePick();
     }
 
     void Update()
     {
-        // 센서 값은 PlayerSensor가 갱신한다.
-        // 여기서는 Pick 상태만 갱신.
+        // 센서 데이터는 PlayerSensor가 갱신한다고 가정.
+        // 여기서는 선택 상태만 갱신.
+        ResolveEnemyController();
+        CacheMyIndexIfNeeded();
         UpdatePick();
     }
 
     /* =========================================================
-     *  Pick
+     *  Internal
      * ========================================================= */
-    void UpdatePick()
-    {
-        if (!enemyController)
-        {
-            ResolveEnemyController();
-            CacheReflection();
-        }
 
-        if (!enemyController || enemyController.enemies == null)
+    void ResolveEnemyController()
+    {
+        if (enemyController != null) return;
+        enemyController = FindObjectOfType<EnemyController>();
+    }
+
+    void CacheMyIndexIfNeeded()
+    {
+        if (enemyController == null)
         {
-            isPicked = false;
+            cachedEnemiesArray = null;
             myIndex = -1;
-            pickedIndex = -1;
             return;
         }
 
+        // enemies 배열 참조가 바뀌었을 때만 다시 찾기
+        if (ReferenceEquals(cachedEnemiesArray, enemyController.enemies))
+            return;
+
+        cachedEnemiesArray = enemyController.enemies;
         myIndex = FindMyIndex(enemyController);
-        pickedIndex = ReadPickedIndex(enemyController);
+    }
+
+    void UpdatePick()
+    {
+        if (enemyController == null || enemyController.enemies == null || enemyController.enemies.Length == 0)
+        {
+            pickedIndex = -1;
+            isPicked = false;
+            return;
+        }
+
+        // EnemyController가 제공하는 기준으로 pickedIndex 읽기
+        if (!enemyController.hasSelectedEnemy)
+        {
+            pickedIndex = -1;
+            isPicked = false;
+            return;
+        }
+
+        pickedIndex = enemyController.pickedIndex;
+
+        // myIndex가 아직 없으면(비정상) 한번 더 계산
+        if (myIndex < 0) myIndex = FindMyIndex(enemyController);
+
         isPicked = (myIndex >= 0 && pickedIndex >= 0 && myIndex == pickedIndex);
-    }
-
-    bool ResolveEnemyController()
-    {
-        if (enemyController) return true;
-        enemyController = FindObjectOfType<EnemyController>();
-        return enemyController != null;
-    }
-
-    void CacheReflection()
-    {
-        if (!enemyController) return;
-        if (pickedIndexField != null) return;
-
-        pickedIndexField = typeof(EnemyController).GetField(
-            "pickedIndex",
-            BindingFlags.Instance | BindingFlags.NonPublic
-        );
-
-        if (pickedIndexField == null)
-            Debug.LogWarning("[EnemySensol] Cannot find private field 'pickedIndex' in EnemyController.", this);
-    }
-
-    int ReadPickedIndex(EnemyController controller)
-    {
-        if (!controller) return -1;
-        if (!controller.HasPicked) return -1;
-        if (pickedIndexField == null) return -1;
-
-        object v = pickedIndexField.GetValue(controller);
-        return (v is int i) ? i : -1;
     }
 
     int FindMyIndex(EnemyController controller)
     {
+        if (controller == null || controller.enemies == null) return -1;
+
         for (int i = 0; i < controller.enemies.Length; i++)
         {
             var mb = controller.enemies[i];
-            if (!mb) continue;
+            if (mb == null) continue;
+
+            // EnemyController.enemies에 들어간 MonoBehaviour가 "같은 게임오브젝트"에 붙어있는 경우를 기본 전제로 함
             if (mb.gameObject == gameObject) return i;
         }
+
         return -1;
     }
 

@@ -2,131 +2,184 @@ using UnityEngine;
 
 public class LoopManager : MonoBehaviour
 {
-    [Header("Pattern State")]
-    public bool hasMonster = false; // 층별 몬스터 존재 여부
-    public int floor = 0;           // 0층 = 둘러보기층
+    [Header("Loop State")]
+    public bool isEnemyFlag = false; // 이번 루프의 몬스터 존재 여부
+    public int floor = 0;            // 현재 층수
 
     [Header("Refs")]
-    public EnemyController enemyController;
-    public System.Action<int> OnFloorChanged;
+    public EnemyController enemyController; // 루프 중 Enemy 제어를 위해 연결
 
-    [Header("FixLines (Inspector Assign)")]
-    public FixLine[] fixLines;  // FindObjectsByType 금지 -> 인스펙터로 넣기
+    //화면의 층수 연동
+    [Header("Floor Display")]
+    public FloorDisplay floorDisplayA;
+    public FloorDisplay floorDisplayB;
 
-    // Fix state
-    bool fixCommitted = false;
-    public bool FixCommitted => fixCommitted;
+    //판정라인 연동
+    [Header("FixLines")]
+    public FixLine fixLineA;
+    public FixLine fixLineB;
 
+    //ActionTrigger
+    [Header("ActionTriggers (3)")]
+    public ActionTrigger[] actionTriggers;
+
+
+    //Fix확인용 변수
+    public bool fixCommitted = false;
+    //어느쪽 Fix인지 확인
     bool fixedSideA = false;
-    public bool FixedSideA => fixedSideA;
 
     public void OnFix(bool sideA)
     {
+        //이미 Fix되어있으면 2번은 작업하지 않음.
         if (fixCommitted) return;
 
         fixCommitted = true;
         fixedSideA = sideA;
 
-        Debug.Log($"[FIX] Fix위치={(sideA ? "A측" : "B측")}");
+        Debug.Log("[FIX] Fix위치=" + (sideA ? "A측" : "B측"));
     }
 
     public void OnTransition(TransitionHub transHub)
     {
-        // 0층 처리(유지)
+        Debug.Log("[LOOP] OnTransition called. floor=" + floor + ", fixCommitted=" + fixCommitted);
+
         if (floor == 0)
         {
+            fixCommitted = false;
+            fixedSideA = false;
+
             floor = 1;
-            SetupPattern();
-            OnFloorChanged?.Invoke(floor);
-            ApplyEnemyByPattern();
+            NotifyFloorChanged(); // 층수 표시 초기화
+            isEnemy();            // 패턴 존재 유무 세팅
+            UpdateEnemyState();   // 패턴존재에 다른 Enemy세팅
+            PickActionTrigger();  // ActionTrigger 선택
             return;
         }
 
-        // Fix 전이라면: 판정하지 말고 매 Transition마다 새 패턴 세팅(당신 설계 유지)
+        //Fix전 다시 Transition시 새로운 Enemy세팅
         if (!fixCommitted)
         {
-            SetupPattern();
-            ApplyEnemyByPattern();
+            isEnemy();          // 패턴 존재 유무 세팅
+            UpdateEnemyState(); // 패턴존재에 다른 Enemy세팅
+            PickActionTrigger();// ActionTrigger 선택
             return;
         }
 
-        // Fix 후에만 정답/오답 판정
-        bool usedSideA = transHub.sideA;          // 실제 선택
-        bool usedFix = (usedSideA == fixedSideA); // Fix와 일치했는가
+        //Fix된 위치 확인 변수(몬스터 O -> 나온곳, 몬스터 X ->반대편)
+        bool usedSideA = transHub.sideA;
+        bool usedFix = (usedSideA == fixedSideA);
+        bool correct = isEnemyFlag ? usedFix : !usedFix;
 
-        bool correct = hasMonster ? usedFix : !usedFix;
-
+        //정답 오답에 따른 층수 판정
         if (correct) floor++;
         else floor = 1;
 
-        OnFloorChanged?.Invoke(floor);
+        NotifyFloorChanged();   // 층 수 초기화
 
-        // Fix는 한 번 판정했으면 해제
-        fixCommitted = false;
+        fixCommitted = false;   // Fix초기화
 
-        // 다음 패턴 세팅
-        SetupPattern();
-        ApplyEnemyByPattern();
+        isEnemy();              // 정답 판정 후 새로운 Loop몬스터 존재유무
+        UpdateEnemyState();     // 패턴존재에 다른 Enemy세팅
+        PickActionTrigger();    // ActionTrigger 선택
     }
 
-    void ApplyEnemyByPattern()
-    {
-        if (hasMonster) enemyController?.ActivateOne();
-        else enemyController?.DeactivateAll();
-    }
-
-    public void ResetFixLine()
-    {
-        // FindObjectsByType 금지 -> 인스펙터 배열만 순회
-        if (fixLines != null)
-        {
-            for (int i = 0; i < fixLines.Length; i++)
-            {
-                if (fixLines[i] != null)
-                    fixLines[i].ResetFix();
-            }
-        }
-
-        // Fix 상태도 초기화
-        fixCommitted = false;
-    }
-
-    void SetupPattern()
+    // 패턴 존재 유무 세팅
+    void isEnemy()
     {
         if (floor == 0)
         {
-            hasMonster = false;
+            isEnemyFlag = false;
             return;
         }
 
-        // 예시: 50% 확률로 등장/비등장
-        hasMonster = Random.value < 0.5f;
-
-        Debug.Log($"[패턴] {floor}층 → 몬스터={(hasMonster ? "있음" : "없음")}");
+        //적 존재 유무
+        isEnemyFlag = Random.value < 0.5f;
+        Debug.Log("[패턴] " + floor + "층 → Enemy=" + (isEnemyFlag ? "있음" : "없음"));
     }
 
+    // 패턴 존재 유무에 따라 Enemy세팅 or 전체 비활성화.
+    void UpdateEnemyState()
+    {
+        if (enemyController == null) return;
+
+        enemyController.SetupForLoop(isEnemyFlag);
+    }
+
+    //층수 변경 적용 함수
+    void NotifyFloorChanged()
+    {
+        if (floorDisplayA != null)
+            floorDisplayA.SetFloor(floor);
+
+        if (floorDisplayB != null)
+            floorDisplayB.SetFloor(floor);
+    }
+
+    //LoopManager에서 전환시 다른 함수들에 초기화를 중계
+    public void TransitionReset()
+    {
+        // Fix라인 Lock해제.
+        if (fixLineA != null) fixLineA.ResetFix();
+        if (fixLineB != null) fixLineB.ResetFix();
+
+
+
+        if (enemyController != null)
+            enemyController.ResetEnemiesAfterTransition();
+
+        if (actionTriggers != null)
+        {
+            for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
+                if (actionTriggers[actionTriggerCount] != null)
+                    actionTriggers[actionTriggerCount].ActionTriggerUnlock();
+        }
+
+    }
+
+    // Enemy에의한 사망시 쓰이는 함수.
     public void OnEnemyKill()
     {
         Debug.Log("[LOOP] Kill 발생 → Loop Reset");
+        //kill시 Enemy초기화.
+        if (enemyController != null)
+            enemyController.ResetAllEnemies();
 
-        enemyController?.ResetAll();
-
+        //kill후 새로운 게임 생성.
         floor = 1;
-        SetupPattern();
-        ApplyEnemyByPattern();
+        isEnemy();            // Enemy 존재 유무 새로 정하기.
+        NotifyFloorChanged(); // 층수 최신화
+        UpdateEnemyState();   // 패턴존재에 다른 Enemy세팅
+        PickActionTrigger();  // ActionTrigger 선택
     }
 
+    //범용 Enemy리셋 함수
     public void OnEnemyEnd()
     {
         Debug.Log("[LOOP] 패턴 종료 → Loop 진행");
-        enemyController?.ResetAll();
+
+        if (enemyController != null)
+            enemyController.ResetAllEnemies();
     }
 
-    public void AfterTransitionReset()
+    void PickActionTrigger()
     {
-        // Transition 직후 공통 리셋
-        ResetFixLine();
-        enemyController?.OnTransitionResetAll();
-        // ActionTrigger도 나중에 여기로 합치면 됨
+        // Enemy가 없으면 트리거는 전부 잠가두는 쪽이 안전
+        if (actionTriggers == null || actionTriggers.Length == 0) return;
+
+        // 전부 Lock
+        for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
+        {
+            if (actionTriggers[actionTriggerCount] != null)
+                actionTriggers[actionTriggerCount].ActionTriggerLock();
+        }
+
+        // Enemy가 있을 때만 1개를 열어줌
+        if (!isEnemyFlag) return;
+
+        int selectActionTrigger = Random.Range(0, actionTriggers.Length);
+        if (actionTriggers[selectActionTrigger] != null)
+            actionTriggers[selectActionTrigger].ActionTriggerUnlock();
     }
+
 }
