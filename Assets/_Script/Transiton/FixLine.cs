@@ -16,7 +16,7 @@ public class FixLine : MonoBehaviour
             return;
 
         if (locked) return;
-        if (loopManager.FixCommitted) return;
+        if (loopManager.fixCommitted) return;
 
         locked = true;
         loopManager.OnFix(sideA); // hub 대신 bool 전달

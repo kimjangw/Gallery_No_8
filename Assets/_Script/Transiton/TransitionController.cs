@@ -59,10 +59,8 @@ public class TransitionController : MonoBehaviour
         // loopManager 루프 판정/상태 갱신 
         loopManager.OnTransition(hub);
 
-        //FixLine도 UnLock
-        loopManager.ResetFixLine();
-        //Enemy들 초기화.
-        loopManager.enemyController.OnTransitionResetAll();
+        // loopManager를 통해 세팅 리셋(Fix, Enemy상태)
+        loopManager.TransitionReset();
 
         //ActionTrigger도 재활성
         actionTrigger.UnlockForNextSection();
