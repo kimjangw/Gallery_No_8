@@ -1267,6 +1267,10 @@ MonoBehaviour:
   floorDisplayB: {fileID: 310864525}
   fixLineA: {fileID: 4189024}
   fixLineB: {fileID: 758130989}
+  actionTriggers:
+  - {fileID: 1796227556}
+  - {fileID: 1841785239}
+  - {fileID: 532305825}
   fixCommitted: 0
 --- !u!4 &301468672 stripped
 Transform:
@@ -4056,7 +4060,10 @@ MonoBehaviour:
   cc: {fileID: 1205529400}
   cameraController: {fileID: 1326317716}
   loopManager: {fileID: 286086521}
-  actionTrigger: {fileID: 1841785239}
+  actionTriggers:
+  - {fileID: 1796227556}
+  - {fileID: 1841785239}
+  - {fileID: 532305825}
   hub: {fileID: 1287768518}
 --- !u!1 &758130983
 GameObject:
@@ -8254,7 +8261,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 409871eee02d743439b3115c6038fc37, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyController: {fileID: 0}
+  enemyController: {fileID: 1542684677}
   isPicked: 0
   myIndex: -1
   pickedIndex: -1
@@ -9355,7 +9362,10 @@ MonoBehaviour:
   cc: {fileID: 1205529400}
   cameraController: {fileID: 1326317716}
   loopManager: {fileID: 286086521}
-  actionTrigger: {fileID: 1841785239}
+  actionTriggers:
+  - {fileID: 1796227556}
+  - {fileID: 1841785239}
+  - {fileID: 532305825}
   hub: {fileID: 234457841}
 --- !u!4 &1832561690 stripped
 Transform:
@@ -10061,7 +10071,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 409871eee02d743439b3115c6038fc37, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  enemyController: {fileID: 0}
+  enemyController: {fileID: 1542684677}
   isPicked: 0
   myIndex: -1
   pickedIndex: -1

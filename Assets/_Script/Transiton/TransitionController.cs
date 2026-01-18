@@ -9,7 +9,7 @@ public class TransitionController : MonoBehaviour
     public LoopManager loopManager;
 
     [Header("ActionTrigger Reset")]
-    public ActionTrigger actionTrigger;
+    public ActionTrigger[] actionTriggers;
 
     [Header("Portal Hub")]
     public TransitionHub hub;
@@ -56,14 +56,11 @@ public class TransitionController : MonoBehaviour
         // 전환 직후 카메라 재정렬
         cameraController.SnapAfterTransition();
 
-        // loopManager 루프 판정/상태 갱신 
-        loopManager.OnTransition(hub);
-
-        // loopManager를 통해 세팅 리셋(Fix, Enemy상태)
+        // loopManager를 통해 세팅 리셋(Fix, Enemy상태, ActionTrigger)
         loopManager.TransitionReset();
 
-        //ActionTrigger도 재활성
-        actionTrigger.UnlockForNextSection();
+        // loopManager 루프 판정/상태 갱신 
+        loopManager.OnTransition(hub);
 
         // 가드 해제
         isTransitioning = false;

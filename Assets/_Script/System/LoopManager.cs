@@ -19,6 +19,11 @@ public class LoopManager : MonoBehaviour
     public FixLine fixLineA;
     public FixLine fixLineB;
 
+    //ActionTrigger
+    [Header("ActionTriggers (3)")]
+    public ActionTrigger[] actionTriggers;
+
+
     //Fix확인용 변수
     public bool fixCommitted = false;
     //어느쪽 Fix인지 확인
@@ -42,9 +47,10 @@ public class LoopManager : MonoBehaviour
         if (floor == 0)
         {
             floor = 1;
-            NotifyFloorChanged(); //층수 표시 초기화
+            NotifyFloorChanged(); // 층수 표시 초기화
             isEnemy();            // 패턴 존재 유무 세팅
             UpdateEnemyState();   // 패턴존재에 다른 Enemy세팅
+            PickActionTrigger();  // ActionTrigger 선택
             return;
         }
 
@@ -53,6 +59,7 @@ public class LoopManager : MonoBehaviour
         {
             isEnemy();          // 패턴 존재 유무 세팅
             UpdateEnemyState(); // 패턴존재에 다른 Enemy세팅
+            PickActionTrigger();// ActionTrigger 선택
             return;
         }
 
@@ -71,6 +78,7 @@ public class LoopManager : MonoBehaviour
 
         isEnemy();              // 정답 판정 후 새로운 Loop몬스터 존재유무
         UpdateEnemyState();     // 패턴존재에 다른 Enemy세팅
+        PickActionTrigger();    // ActionTrigger 선택
     }
 
     // 패턴 존재 유무 세팅
@@ -117,6 +125,14 @@ public class LoopManager : MonoBehaviour
 
         if (enemyController != null)
             enemyController.OnTransitionResetAll();
+
+        if (actionTriggers != null)
+        {
+            for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
+                if (actionTriggers[actionTriggerCount] != null)
+                    actionTriggers[actionTriggerCount].Unlock();
+        }
+
     }
 
     // Enemy에의한 사망시 쓰이는 함수.
@@ -129,9 +145,10 @@ public class LoopManager : MonoBehaviour
 
         //kill후 새로운 게임 생성.
         floor = 1;
-        isEnemy();// Enemy 존재 유무 새로 정하기.
+        isEnemy();            // Enemy 존재 유무 새로 정하기.
         NotifyFloorChanged(); // 층수 최신화
         UpdateEnemyState();   // 패턴존재에 다른 Enemy세팅
+        PickActionTrigger();  // ActionTrigger 선택
     }
 
     //범용 Enemy리셋 함수
@@ -142,5 +159,26 @@ public class LoopManager : MonoBehaviour
         if (enemyController != null)
             enemyController.ResetAll();
     }
+
+    void PickActionTrigger()
+    {
+        // Enemy가 없으면 트리거는 전부 잠가두는 쪽이 안전
+        if (actionTriggers == null || actionTriggers.Length == 0) return;
+
+        // 일단 전부 Lock
+        for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
+        {
+            if (actionTriggers[actionTriggerCount] != null)
+                actionTriggers[actionTriggerCount].Lock();
+        }
+
+        // Enemy가 있을 때만 1개를 열어줌
+        if (!isEnemyFlag) return;
+
+        int selectActionTrigger = Random.Range(0, actionTriggers.Length);
+        if (actionTriggers[selectActionTrigger] != null)
+            actionTriggers[selectActionTrigger].Unlock();
+    }
+
 
 }
