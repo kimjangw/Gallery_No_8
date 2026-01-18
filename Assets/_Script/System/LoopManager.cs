@@ -100,8 +100,7 @@ public class LoopManager : MonoBehaviour
     {
         if (enemyController == null) return;
 
-        if (isEnemyFlag) enemyController.ActivateOne();
-        else enemyController.DeactivateAll();
+        enemyController.SetupForLoop(isEnemyFlag);
     }
 
     //층수 변경 적용 함수
@@ -121,16 +120,16 @@ public class LoopManager : MonoBehaviour
         if (fixLineA != null) fixLineA.ResetFix();
         if (fixLineB != null) fixLineB.ResetFix();
 
-        fixCommitted = false;
+
 
         if (enemyController != null)
-            enemyController.OnTransitionResetAll();
+            enemyController.ResetEnemiesAfterTransition();
 
         if (actionTriggers != null)
         {
             for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
                 if (actionTriggers[actionTriggerCount] != null)
-                    actionTriggers[actionTriggerCount].Unlock();
+                    actionTriggers[actionTriggerCount].ActionTriggerUnlock();
         }
 
     }
@@ -141,7 +140,7 @@ public class LoopManager : MonoBehaviour
         Debug.Log("[LOOP] Kill 발생 → Loop Reset");
         //kill시 Enemy초기화.
         if (enemyController != null)
-            enemyController.ResetAll();
+            enemyController.ResetAllEnemies();
 
         //kill후 새로운 게임 생성.
         floor = 1;
@@ -157,7 +156,7 @@ public class LoopManager : MonoBehaviour
         Debug.Log("[LOOP] 패턴 종료 → Loop 진행");
 
         if (enemyController != null)
-            enemyController.ResetAll();
+            enemyController.ResetAllEnemies();
     }
 
     void PickActionTrigger()
@@ -165,11 +164,11 @@ public class LoopManager : MonoBehaviour
         // Enemy가 없으면 트리거는 전부 잠가두는 쪽이 안전
         if (actionTriggers == null || actionTriggers.Length == 0) return;
 
-        // 일단 전부 Lock
+        // 전부 Lock
         for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
         {
             if (actionTriggers[actionTriggerCount] != null)
-                actionTriggers[actionTriggerCount].Lock();
+                actionTriggers[actionTriggerCount].ActionTriggerLock();
         }
 
         // Enemy가 있을 때만 1개를 열어줌
@@ -177,8 +176,7 @@ public class LoopManager : MonoBehaviour
 
         int selectActionTrigger = Random.Range(0, actionTriggers.Length);
         if (actionTriggers[selectActionTrigger] != null)
-            actionTriggers[selectActionTrigger].Unlock();
+            actionTriggers[selectActionTrigger].ActionTriggerUnlock();
     }
-
 
 }

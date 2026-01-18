@@ -1,6 +1,6 @@
 using UnityEngine;
 
-public class Enemy3_FlyForward : MonoBehaviour
+public class Enemy4_PrankaDrop : MonoBehaviour
 {
     [Header("Move Target")]
     public Transform moveRoot;   // ✅ 실제로 날릴 메쉬 루트(예: MCh_S_12... 또는 ZBrush_default_group)

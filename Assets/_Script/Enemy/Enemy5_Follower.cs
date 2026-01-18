@@ -1,215 +1,305 @@
 // ============================================================================
-//  Enemy5_Follower.cs (Layer 기반 Player 획득 / NavMesh 안전가드 / CommonStare 지원)
-//  - Tag 사용 제거
-//  - PlayerLayerName 과 playerLayerIndex 둘 중 하나만 맞춰도 동작
-//  - (테스트용) OnTriggerEnter로 player를 먼저 잡는 방식 포함
+//  Enemy5_Follower.cs (EnemyPattern / Option A: 근접 시 정지 + 응시)
+//  - Player Layer: Awake에서 LayerMask.NameToLayer("Player") 캐싱 방식
 // ============================================================================
 
 using UnityEngine;
 using UnityEngine.AI;
 
-public class Enemy5_Follower : MonoBehaviour
+public class Enemy5_Follower : MonoBehaviour, EnemyPattern
 {
     [Header("Refs")]
-    public LoopManager loop; // 없어도 됨(End만 쓰면)
+    public LoopManager loop;
+
     NavMeshAgent agent;
     Transform player;
 
-    [Header("Player (Layer)")]
-    public string playerLayerName = "Player"; // 네가 쓰는 Player 레이어 이름
-    int playerLayerIndex = -1;
+    // Player 레이어 캐시(Awake에서 1회 계산)
+    int playerLayer = -1;
 
     [Header("Follow Settings")]
-    public float keepDistance = 3.0f;     // 이 거리 이내면 정지
-    public float resumeDistance = 4.5f;   // 이 거리 이상이면 다시 따라감 (히스테리시스)
-    public float maxFollowTime = 0f;      // 0이면 무한, 값 있으면 시간 후 End
+    public float keepDistance = 3.0f;      // 이 거리 이내면 정지 + 응시 전환
+    public float resumeDistance = 4.5f;    // 이 거리 이상이면 다시 추적(히스테리시스)
+    public float followSpeed = 2.8f;       // 추적 속도
 
-    float t;
-    bool active;
+    [Header("Stare Settings (Option A)")]
+    public float stareDuration = 2.0f;     // 근접 후 응시 지속 시간
+    public float stareTurnSpeed = 6.0f;    // 응시 회전 속도
 
-    // 공통 Stare 패턴
-    bool commonStareActive;
+    [Header("NavMesh Safety")]
+    public float navSampleRadius = 1.5f;   // NavMesh 밖일 때 보정 반경
+    public float spawnSampleRadius = 2.0f; // 스폰 복귀 시 보정 반경
 
+    // 상태
+    bool actionStarted = false;            // StartAction 이후 true
+    bool isStaring = false;                // 근접 후 응시 상태
+    float stareTimer = 0f;
+
+    // 스폰(최초 배치 위치)
     Vector3 spawnPos;
     Quaternion spawnRot;
+    bool hasSpawn = false;
 
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
 
-        // LayerIndex 캐싱
-        playerLayerIndex = LayerMask.NameToLayer(playerLayerName);
+        // Player 레이어 캐싱
+        playerLayer = LayerMask.NameToLayer("Player");
 
-        // (선택) 시작 시점에 한번 찾아보기 (씬이 단순하면 충분히 OK)
-        // player는 트리거로 잡는 방식이 더 확실하지만, 테스트 편의상 함께 둠
-        player = FindPlayerByLayerIndex(playerLayerIndex);
+        // (테스트/안정) 시작 시점에 한번 확보
+        player = FindPlayerByLayer(playerLayer);
 
         if (!loop) loop = FindObjectOfType<LoopManager>();
 
         spawnPos = transform.position;
         spawnRot = transform.rotation;
+        hasSpawn = true;
 
-        Deactivate(); // 안전가드 들어있어서 Awake에서 호출해도 OK
+        Deactivate();
     }
 
-    // =====================================================================
-    // [TEST] 플레이어가 Enemy 주변 트리거를 지나가면 player를 확정 등록
-    // - 이 스크립트가 붙은 오브젝트에 Collider(IsTrigger) 있어야 함
-    // =====================================================================
     void OnTriggerEnter(Collider other)
     {
-        if (playerLayerIndex < 0) return;
+        if (playerLayer < 0) return;
+        if (other.gameObject.layer != playerLayer) return;
 
-        if (other.gameObject.layer != playerLayerIndex)
-            return;
-
-        // 플레이어 콜라이더가 자식일 수 있으니 root로 잡는 게 보통 안전
+        // 플레이어 콜라이더가 자식일 수 있으니 root로
         player = other.transform.root;
     }
 
-    public void Activate()
+    // =========================================================
+    // EnemyPattern
+    // =========================================================
+
+    public void Ready()
     {
-        // player가 아직 없으면 한번 더 찾아본다 (테스트 편의)
-        if (player == null && playerLayerIndex >= 0)
-            player = FindPlayerByLayerIndex(playerLayerIndex);
+        AcquirePlayerIfNeeded();
+
+        actionStarted = false;
+        isStaring = false;
+        stareTimer = 0f;
+
+        if (agent)
+        {
+            agent.speed = followSpeed;
+            EnsureOnNavMesh();
+            StopMoveHard();
+        }
+
+        enabled = true;
+    }
+
+    public void StartAction()
+    {
+        AcquirePlayerIfNeeded();
+
+        actionStarted = true;
+        isStaring = false;
+        stareTimer = 0f;
 
         if (!agent || player == null)
         {
-            Debug.LogWarning("[Enemy5_Follower] Activate failed: agent/player missing", this);
-            enabled = false;
+            Deactivate();
             return;
         }
 
-        active = true;
-        t = 0f;
+        agent.speed = followSpeed;
 
-        if (agent.isOnNavMesh)
-            agent.isStopped = false;
+        if (!EnsureOnNavMesh())
+        {
+            Deactivate();
+            return;
+        }
 
+        agent.isStopped = false;
         enabled = true;
     }
 
     public void Deactivate()
     {
-        active = false;
+        actionStarted = false;
+        isStaring = false;
+        stareTimer = 0f;
 
-        if (agent && agent.isOnNavMesh)
-            agent.isStopped = true;
-
-        // Follow도 꺼지고, Stare도 꺼짐
-        commonStareActive = false;
+        StopMoveHard();
         enabled = false;
     }
 
     public void ResetEnemy()
     {
-        t = 0f;
-        active = false;
-        commonStareActive = false;
+        actionStarted = false;
+        isStaring = false;
+        stareTimer = 0f;
 
-        if (agent && agent.isOnNavMesh)
-            agent.isStopped = true;
-
-        transform.SetPositionAndRotation(spawnPos, spawnRot);
-
-        // Reset 후 NavMesh 위로 스냅(스폰이 약간 떠있거나, 피벗 문제로 벗어나는 케이스 방지)
-        if (agent && !agent.isOnNavMesh)
-        {
-            if (NavMesh.SamplePosition(transform.position, out var hit, 1.0f, NavMesh.AllAreas))
-                transform.position = hit.position;
-        }
-
+        ResetToSpawn();
         enabled = false;
     }
 
-    // ===== 공통패턴(랜덤 1개가 나를 쳐다봄) 지원 =====
-    public void StartCommonStare()
+    public void OnTransitionReset()
     {
-        // player가 아직 없으면 한번 확보 시도
-        if (player == null && playerLayerIndex >= 0)
-            player = FindPlayerByLayerIndex(playerLayerIndex);
+        actionStarted = false;
+        isStaring = false;
+        stareTimer = 0f;
 
-        commonStareActive = true;
-        enabled = true; // 비활성 상태여도 시선 연출은 가능
+        ResetToSpawn();   // 트랜지션 시 스폰 복귀(필수)
+        enabled = false;
     }
 
-    public void StopCommonStare()
-    {
-        commonStareActive = false;
-
-        // Follow(active)가 아니라면 다시 꺼줌(불필요 Update 방지)
-        if (!active) enabled = false;
-    }
+    // =========================================================
+    // Update
+    // =========================================================
 
     void Update()
     {
-        // player가 없으면 아무것도 못함
+        if (!actionStarted) return;
+        if (!agent) return;
         if (player == null) return;
 
-        // 공통 Stare가 우선권(회전만)
-        if (commonStareActive)
-        {
-            FacePlayer(6f);
-            return;
-        }
+        if (!EnsureOnNavMesh()) return;
 
-        if (!active) return;
-        if (!agent || !agent.isOnNavMesh) return;
-
-        // 옵션: 일정 시간 후 종료(패턴 자동 종료)
-        if (maxFollowTime > 0f)
+        // 응시 상태
+        if (isStaring)
         {
-            t += Time.deltaTime;
-            if (t >= maxFollowTime)
+            FacePlayer(stareTurnSpeed);
+
+            stareTimer += Time.deltaTime;
+            if (stareTimer >= stareDuration)
             {
-                loop?.OnEnemyEnd();
+                if (loop != null) loop.OnEnemyEnd();
                 Deactivate();
-                return;
             }
+            return;
         }
 
         float dist = Vector3.Distance(transform.position, player.position);
 
-        if (!agent.isStopped)
+        // 근접 도달 → 정지 + 응시
+        if (!agent.isStopped && dist <= keepDistance)
         {
-            if (dist <= keepDistance)
-                agent.isStopped = true;
-        }
-        else
-        {
-            if (dist >= resumeDistance)
-                agent.isStopped = false;
+            StopMoveHard();
+            isStaring = true;
+            stareTimer = 0f;
+            return;
         }
 
+        // 멀어지면 재추적
+        if (agent.isStopped && dist >= resumeDistance)
+        {
+            agent.isStopped = false;
+        }
+
+        // 추적 중이면 목적지 갱신(붙지 않게 keepDistance 지점)
         if (!agent.isStopped)
-            agent.SetDestination(player.position);
+        {
+            Vector3 followTarget = GetFollowTarget();
+            agent.SetDestination(followTarget);
+        }
     }
 
-    void FacePlayer(float speed)
+    Vector3 GetFollowTarget()
+    {
+        Vector3 awayDir = transform.position - player.position;
+        awayDir.y = 0f;
+
+        if (awayDir.sqrMagnitude < 0.0001f)
+            awayDir = -player.forward;
+
+        awayDir.Normalize();
+
+        return player.position + awayDir * keepDistance;
+    }
+
+    // =========================================================
+    // NavMesh / Movement Safety
+    // =========================================================
+
+    void StopMoveHard()
+    {
+        if (!agent || !agent.enabled) return;
+
+        if (agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
+        }
+    }
+
+    bool EnsureOnNavMesh()
+    {
+        if (!agent || !agent.enabled) return false;
+        if (agent.isOnNavMesh) return true;
+
+        if (NavMesh.SamplePosition(transform.position, out var hit, navSampleRadius, NavMesh.AllAreas))
+        {
+            agent.Warp(hit.position);
+            return agent.isOnNavMesh;
+        }
+
+        return false;
+    }
+
+    void ResetToSpawn()
+    {
+        if (!hasSpawn) return;
+
+        StopMoveHard();
+
+        transform.SetPositionAndRotation(spawnPos, spawnRot);
+
+        if (agent && agent.enabled)
+        {
+            if (NavMesh.SamplePosition(spawnPos, out var hit, spawnSampleRadius, NavMesh.AllAreas))
+            {
+                agent.Warp(hit.position);
+            }
+
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.ResetPath();
+                agent.velocity = Vector3.zero;
+            }
+        }
+    }
+
+    // =========================================================
+    // Facing
+    // =========================================================
+
+    void FacePlayer(float turnSpeed)
     {
         if (player == null) return;
 
-        Vector3 dir = (player.position - transform.position);
+        Vector3 dir = player.position - transform.position;
         dir.y = 0f;
+
         if (dir.sqrMagnitude < 0.0001f) return;
 
         Quaternion target = Quaternion.LookRotation(dir.normalized, Vector3.up);
-        transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * speed);
+        transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * turnSpeed);
     }
 
-    // =====================================================================
-    // Utils
-    // =====================================================================
-    Transform FindPlayerByLayerIndex(int layerIndex)
+    // =========================================================
+    // Player Acquire
+    // =========================================================
+
+    void AcquirePlayerIfNeeded()
+    {
+        if (player != null) return;
+        player = FindPlayerByLayer(playerLayer);
+    }
+
+    Transform FindPlayerByLayer(int layerIndex)
     {
         if (layerIndex < 0) return null;
 
-        // 씬 전체 Transform 스캔 (테스트 용도. 나중에 다이어트 가능)
         var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
-        for (int i = 0; i < all.Length; i++)
+        for (int enemyIndex = 0; enemyIndex < all.Length; enemyIndex++)
         {
-            if (all[i].gameObject.layer == layerIndex)
-                return all[i];
+            if (all[enemyIndex].gameObject.layer == layerIndex)
+                return all[enemyIndex];
         }
         return null;
     }
