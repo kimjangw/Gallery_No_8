@@ -622,6 +622,11 @@ MonoBehaviour:
       position: {x: 0, y: 0, z: 0}
       rotation: {x: 0, y: 0, z: 0}
     m_Visible: 1
+--- !u!1 &178948306 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6041849146320816324, guid: eec5e7970026ce040ad534251777a603, type: 3}
+  m_PrefabInstance: {fileID: 651240478}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &197028833
 GameObject:
   m_ObjectHideFlags: 0
@@ -1032,15 +1037,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1bee82bd54a3f5b4cb52890c5c238c04, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  flashlight: {fileID: 0}
+  player: {fileID: 1205529394}
   moveRoot: {fileID: 1174918853}
-  loopManager: {fileID: 0}
-  targetForward: 1.2
-  spawnUp: 1
-  dropSpeed: 14
-  groundProbeHeight: 2
-  groundProbeDepth: 6
-  navmeshSampleRadius: 1
+  targetForward: 5
+  startHeight: 1.2
+  flyDuration: 0.7
 --- !u!1 &234457835
 GameObject:
   m_ObjectHideFlags: 0
@@ -1707,6 +1708,11 @@ PrefabInstance:
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 7bdb4b6a1250b9d4aaccf0531a3da8ef, type: 3}
   m_PrefabInstance: {fileID: 356657916}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &357221759 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8470013116582163756, guid: eec5e7970026ce040ad534251777a603, type: 3}
+  m_PrefabInstance: {fileID: 651240478}
   m_PrefabAsset: {fileID: 0}
 --- !u!4 &389162560 stripped
 Transform:
@@ -3458,6 +3464,11 @@ GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 2060189114c0aba4c847d350bfb5a128, type: 3}
   m_PrefabInstance: {fileID: 922265552}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &593519711 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: -8719264047187690621, guid: eec5e7970026ce040ad534251777a603, type: 3}
+  m_PrefabInstance: {fileID: 651240478}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &608845804 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2473453930905039893, guid: 780d340bd8578d54f80ca5409d087ef6, type: 3}
@@ -5008,13 +5019,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 805872d66d275614385e16530cc5e84f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  loop: {fileID: 286086521}
-  playerLayerName: Player
-  maxTeleports: 3
+  loopManager: {fileID: 286086521}
+  player: {fileID: 1205529394}
+  sensor: {fileID: 922265558}
   behindDistance: 2.2
   sampleRadius: 3
-  blindCooldown: 0.4
-  killAfterCycles: 1
+  killAfterThirdTeleport: 1
+  farPercent: 1
+  midPercent: 0.7
+  nearPercent: 0.3
+  faceTurnSpeed: 6
 --- !u!114 &922265558
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5509,12 +5523,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f164c3d63c2b224bb3726786dbb826f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  loop: {fileID: 286086521}
+  loopManager: {fileID: 286086521}
+  enemySensol: {fileID: 1016215965}
+  player: {fileID: 1205529394}
+  idleObj: {fileID: 357221759}
+  pointObj: {fileID: 593519711}
+  attackObj: {fileID: 178948306}
+  pointDuration: 0.6
   killTime: 10
   killDistance: 1.2
   repathInterval: 0.2
-  debug: 1
-  debugInterval: 0.5
+  navSampleRadius: 1.5
+  spawnSampleRadius: 2
 --- !u!195 &1016215964
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -7937,7 +7957,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemies:
+  - {fileID: 1016215963}
+  - {fileID: 2081129675}
   - {fileID: 227921426}
+  - {fileID: 1575715005}
+  - {fileID: 922265557}
   pickedIndex: -1
   hasSelectedEnemy: 0
 --- !u!4 &1545025518 stripped
@@ -8232,10 +8256,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d8b8584b18f9ea4bba437721e2715a8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  loop: {fileID: 286086521}
+  loopManager: {fileID: 286086521}
+  player: {fileID: 1205529394}
+  sensor: {fileID: 1575715007}
   chargeTime: 1
   killDistance: 1.1
   repathInterval: 0.15
+  rushSpeed: 30
+  faceTurnSpeed: 6
+  navSampleRadius: 1.5
+  spawnSampleRadius: 2
 --- !u!195 &1575715006
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -10209,9 +10239,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 11809b6dc3f2bdf4f8cb083c2308fa3b, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2102081395}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 11809b6dc3f2bdf4f8cb083c2308fa3b, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 2102081396}
   m_SourcePrefab: {fileID: 100100000, guid: 11809b6dc3f2bdf4f8cb083c2308fa3b, type: 3}
 --- !u!4 &2102081390 stripped
 Transform:
@@ -10262,27 +10289,6 @@ MonoBehaviour:
   distance: 0
   state: 2
   labelHeight: 6
---- !u!114 &2102081396
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1354309974}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1bee82bd54a3f5b4cb52890c5c238c04, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  flashlight: {fileID: 1566807951}
-  moveRoot: {fileID: 227921425}
-  loopManager: {fileID: 286086521}
-  targetForward: 1.2
-  spawnUp: 1
-  dropSpeed: 14
-  groundProbeHeight: 2
-  groundProbeDepth: 6
-  navmeshSampleRadius: 1
 --- !u!4 &2108373061 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6157123593595765994, guid: 780d340bd8578d54f80ca5409d087ef6, type: 3}
