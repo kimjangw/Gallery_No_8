@@ -1,104 +1,66 @@
-// ============================================================================
-//  Enemy5_Follower.cs (EnemyPattern / Option A: 근접 시 정지 + 응시)
-//  - Player Layer: Awake에서 LayerMask.NameToLayer("Player") 캐싱 방식
-// ============================================================================
-
 using UnityEngine;
 using UnityEngine.AI;
 
 public class Enemy5_Follower : MonoBehaviour, EnemyPattern
 {
-    [Header("Refs")]
-    public LoopManager loop;
+    [Header("Refs (Inspector)")]
+    public LoopManager loopManager; // 루프 종료 신호용
+    public Transform player;        // 추적 대상(인스펙터 주입)
 
-    NavMeshAgent agent;
-    Transform player;
+    [Header("Follow")]
+    public float keepDistance = 3.0f; // 이 거리까지 접근하면 정지/응시
+    public float followSpeed = 2.8f;  // 이동 속도
 
-    // Player 레이어 캐시(Awake에서 1회 계산)
-    int playerLayer = -1;
-
-    [Header("Follow Settings")]
-    public float keepDistance = 3.0f;      // 이 거리 이내면 정지 + 응시 전환
-    public float resumeDistance = 4.5f;    // 이 거리 이상이면 다시 추적(히스테리시스)
-    public float followSpeed = 2.8f;       // 추적 속도
-
-    [Header("Stare Settings (Option A)")]
-    public float stareDuration = 2.0f;     // 근접 후 응시 지속 시간
-    public float stareTurnSpeed = 6.0f;    // 응시 회전 속도
+    [Header("Stare (Option A)")]
+    public float stareDuration = 2.0f;  // 응시 지속 시간
+    public float stareTurnSpeed = 6.0f; // 응시 회전 속도
 
     [Header("NavMesh Safety")]
-    public float navSampleRadius = 1.5f;   // NavMesh 밖일 때 보정 반경
-    public float spawnSampleRadius = 2.0f; // 스폰 복귀 시 보정 반경
+    public float sampleRadius = 1.5f; // NavMesh 이탈 시 보정 반경
 
-    // 상태
-    bool actionStarted = false;            // StartAction 이후 true
-    bool isStaring = false;                // 근접 후 응시 상태
-    float stareTimer = 0f;
+    NavMeshAgent agent;
 
-    // 스폰(최초 배치 위치)
-    Vector3 spawnPos;
-    Quaternion spawnRot;
-    bool hasSpawn = false;
+    bool actionStarted; // StartAction 이후 true
+    bool isStaring;     // 근접 후 응시 상태
+    float stareTimer;   // 응시 타이머
 
+    Vector3 spawnPos;    // 최초 배치 위치
+    Quaternion spawnRot; // 최초 배치 회전
+
+    // 컴포넌트/스폰 정보 캐싱 + 초기 정지 상태 세팅
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
 
-        // Player 레이어 캐싱
-        playerLayer = LayerMask.NameToLayer("Player");
-
-        // (테스트/안정) 시작 시점에 한번 확보
-        player = FindPlayerByLayer(playerLayer);
-
-        if (!loop) loop = FindObjectOfType<LoopManager>();
-
         spawnPos = transform.position;
         spawnRot = transform.rotation;
-        hasSpawn = true;
 
-        Deactivate();
+        Deactivate(); // 스크립트는 꺼지지 않음(내부 상태만 정리)
     }
 
-    void OnTriggerEnter(Collider other)
-    {
-        if (playerLayer < 0) return;
-        if (other.gameObject.layer != playerLayer) return;
-
-        // 플레이어 콜라이더가 자식일 수 있으니 root로
-        player = other.transform.root;
-    }
-
-    // =========================================================
-    // EnemyPattern
-    // =========================================================
-
+    // 루프에서 선택되었을 때: 등장/대기 상태 세팅
     public void Ready()
     {
-        AcquirePlayerIfNeeded();
-
         actionStarted = false;
         isStaring = false;
         stareTimer = 0f;
 
-        if (agent)
+        if (agent != null)
         {
             agent.speed = followSpeed;
             EnsureOnNavMesh();
-            StopMoveHard();
+            StopAgent();
         }
-
-        enabled = true;
     }
 
+    // ActionTrigger 신호 시 행동 시작
     public void StartAction()
     {
-        AcquirePlayerIfNeeded();
-
         actionStarted = true;
         isStaring = false;
         stareTimer = 0f;
 
-        if (!agent || player == null)
+        if (agent == null || player == null)
         {
             Deactivate();
             return;
@@ -113,52 +75,49 @@ public class Enemy5_Follower : MonoBehaviour, EnemyPattern
         }
 
         agent.isStopped = false;
-        enabled = true;
     }
 
+    // 완전 비활성: 이동/상태만 정리 (스크립트는 끄지 않음)
     public void Deactivate()
     {
         actionStarted = false;
         isStaring = false;
         stareTimer = 0f;
 
-        StopMoveHard();
-        enabled = false;
+        StopAgent();
     }
 
+    // 강제 리셋: 스폰 복귀 후 비활성
     public void ResetEnemy()
     {
-        actionStarted = false;
-        isStaring = false;
-        stareTimer = 0f;
-
         ResetToSpawn();
-        enabled = false;
+        Deactivate();
     }
 
+    // 트랜지션 직후: 스폰 복귀 후 비활성
     public void OnTransitionReset()
     {
-        actionStarted = false;
-        isStaring = false;
-        stareTimer = 0f;
-
-        ResetToSpawn();   // 트랜지션 시 스폰 복귀(필수)
-        enabled = false;
+        ResetToSpawn();
+        Deactivate();
     }
-
-    // =========================================================
-    // Update
-    // =========================================================
 
     void Update()
     {
         if (!actionStarted) return;
-        if (!agent) return;
-        if (player == null) return;
-
+        if (agent == null || player == null) return;
         if (!EnsureOnNavMesh()) return;
 
-        // 응시 상태
+        float dist = Vector3.Distance(transform.position, player.position);
+
+        // 근접하면 정지 + 응시 상태 진입
+        if (!isStaring && dist <= keepDistance)
+        {
+            StopAgent();
+            isStaring = true;
+            stareTimer = 0f;
+        }
+
+        // 응시(회전) + 종료 처리
         if (isStaring)
         {
             FacePlayer(stareTurnSpeed);
@@ -166,72 +125,43 @@ public class Enemy5_Follower : MonoBehaviour, EnemyPattern
             stareTimer += Time.deltaTime;
             if (stareTimer >= stareDuration)
             {
-                if (loop != null) loop.OnEnemyEnd();
+                if (loopManager != null) loopManager.OnEnemyEnd();
                 Deactivate();
             }
             return;
         }
 
-        float dist = Vector3.Distance(transform.position, player.position);
+        // 플레이어에게 너무 붙지 않도록 keepDistance 지점으로 이동
+        Vector3 toMe = transform.position - player.position;
+        toMe.y = 0f;
 
-        // 근접 도달 → 정지 + 응시
-        if (!agent.isStopped && dist <= keepDistance)
-        {
-            StopMoveHard();
-            isStaring = true;
-            stareTimer = 0f;
-            return;
-        }
+        if (toMe.sqrMagnitude < 0.001f)
+            toMe = -player.forward;
 
-        // 멀어지면 재추적
-        if (agent.isStopped && dist >= resumeDistance)
-        {
-            agent.isStopped = false;
-        }
+        toMe.Normalize();
 
-        // 추적 중이면 목적지 갱신(붙지 않게 keepDistance 지점)
-        if (!agent.isStopped)
-        {
-            Vector3 followTarget = GetFollowTarget();
-            agent.SetDestination(followTarget);
-        }
+        Vector3 target = player.position + toMe * keepDistance;
+        agent.SetDestination(target);
     }
 
-    Vector3 GetFollowTarget()
+    // Agent 즉시 정지( NavMesh 위에서만 )
+    void StopAgent()
     {
-        Vector3 awayDir = transform.position - player.position;
-        awayDir.y = 0f;
+        if (agent == null || !agent.enabled) return;
+        if (!agent.isOnNavMesh) return;
 
-        if (awayDir.sqrMagnitude < 0.0001f)
-            awayDir = -player.forward;
-
-        awayDir.Normalize();
-
-        return player.position + awayDir * keepDistance;
+        agent.isStopped = true;
+        agent.ResetPath();
+        agent.velocity = Vector3.zero;
     }
 
-    // =========================================================
-    // NavMesh / Movement Safety
-    // =========================================================
-
-    void StopMoveHard()
-    {
-        if (!agent || !agent.enabled) return;
-
-        if (agent.isOnNavMesh)
-        {
-            agent.isStopped = true;
-            agent.ResetPath();
-            agent.velocity = Vector3.zero;
-        }
-    }
-
+    // NavMesh 이탈 시 샘플 지점으로 Warp하여 예외/튕김 방지
     bool EnsureOnNavMesh()
     {
-        if (!agent || !agent.enabled) return false;
+        if (agent == null || !agent.enabled) return false;
         if (agent.isOnNavMesh) return true;
 
-        if (NavMesh.SamplePosition(transform.position, out var hit, navSampleRadius, NavMesh.AllAreas))
+        if (NavMesh.SamplePosition(transform.position, out var hit, sampleRadius, NavMesh.AllAreas))
         {
             agent.Warp(hit.position);
             return agent.isOnNavMesh;
@@ -240,20 +170,16 @@ public class Enemy5_Follower : MonoBehaviour, EnemyPattern
         return false;
     }
 
+    // 최초 배치 위치/회전으로 복귀 + Agent 좌표까지 Warp로 동기화
     void ResetToSpawn()
     {
-        if (!hasSpawn) return;
-
-        StopMoveHard();
-
+        StopAgent();
         transform.SetPositionAndRotation(spawnPos, spawnRot);
 
-        if (agent && agent.enabled)
+        if (agent != null && agent.enabled)
         {
-            if (NavMesh.SamplePosition(spawnPos, out var hit, spawnSampleRadius, NavMesh.AllAreas))
-            {
+            if (NavMesh.SamplePosition(spawnPos, out var hit, sampleRadius, NavMesh.AllAreas))
                 agent.Warp(hit.position);
-            }
 
             if (agent.isOnNavMesh)
             {
@@ -264,43 +190,14 @@ public class Enemy5_Follower : MonoBehaviour, EnemyPattern
         }
     }
 
-    // =========================================================
-    // Facing
-    // =========================================================
-
+    // 플레이어를 바라보도록 Y축 회전만 부드럽게 보간
     void FacePlayer(float turnSpeed)
     {
-        if (player == null) return;
-
         Vector3 dir = player.position - transform.position;
         dir.y = 0f;
-
         if (dir.sqrMagnitude < 0.0001f) return;
 
         Quaternion target = Quaternion.LookRotation(dir.normalized, Vector3.up);
         transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * turnSpeed);
-    }
-
-    // =========================================================
-    // Player Acquire
-    // =========================================================
-
-    void AcquirePlayerIfNeeded()
-    {
-        if (player != null) return;
-        player = FindPlayerByLayer(playerLayer);
-    }
-
-    Transform FindPlayerByLayer(int layerIndex)
-    {
-        if (layerIndex < 0) return null;
-
-        var all = Object.FindObjectsByType<Transform>(FindObjectsSortMode.None);
-        for (int enemyIndex = 0; enemyIndex < all.Length; enemyIndex++)
-        {
-            if (all[enemyIndex].gameObject.layer == layerIndex)
-                return all[enemyIndex];
-        }
-        return null;
     }
 }

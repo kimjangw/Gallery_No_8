@@ -24,6 +24,7 @@ public class EnemyController : MonoBehaviour
     // Loop 시작: hasEnemy면 Pick + Ready, 아니면 DisableAll
     public void SetupForLoop(bool hasEnemy)
     {
+
         if (!hasEnemy)
         {
             DisableAllEnemies();

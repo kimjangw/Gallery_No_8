@@ -46,6 +46,9 @@ public class LoopManager : MonoBehaviour
 
         if (floor == 0)
         {
+            fixCommitted = false;
+            fixedSideA = false;
+
             floor = 1;
             NotifyFloorChanged(); // 층수 표시 초기화
             isEnemy();            // 패턴 존재 유무 세팅
