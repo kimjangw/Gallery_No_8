@@ -35,6 +35,24 @@ public class LoopManager : MonoBehaviour
     //어느쪽 Fix인지 확인
     bool fixedSideA = false;
 
+
+    [Header("Kill Test (Coroutine)")]
+    public Transform playerRoot;          // 플레이어 루트 Transform(위치/회전 복귀용)
+    public float restartDelay = 2.0f;     // 테스트용 대기 시간(나중에 버튼으로 교체)
+
+    Vector3 playerSpawnPos;
+    Quaternion playerSpawnRot;
+
+    void Awake()
+    {
+        if (playerRoot != null)
+        {
+            playerSpawnPos = playerRoot.position;
+            playerSpawnRot = playerRoot.rotation;
+        }
+    }
+
+
     public void OnFix(bool sideA)
     {
         //이미 Fix되어있으면 2번은 작업하지 않음.
@@ -49,8 +67,8 @@ public class LoopManager : MonoBehaviour
     public void OnTransition(TransitionHub transHub)
     {
         Debug.Log("[LOOP] OnTransition called. floor=" + floor + ", fixCommitted=" + fixCommitted);
-        
-        if (playerController != null && playerController.IsDead()) return;
+
+        if (playerController != null && playerController.isDead) return;
 
         if (floor == 0)
         {
@@ -127,6 +145,8 @@ public class LoopManager : MonoBehaviour
     //LoopManager에서 전환시 다른 함수들에 초기화를 중계
     public void TransitionReset()
     {
+        if(playerController != null && playerController.isDead) return;
+
         // Fix라인 Lock해제.
         if (fixLineA != null) fixLineA.ResetFix();
         if (fixLineB != null) fixLineB.ResetFix();
@@ -155,26 +175,81 @@ public class LoopManager : MonoBehaviour
 
         // 1) Player 연출/입력락
         if (playerController != null)
-            playerController.OnKilled();
+            playerController.Die();
 
         // 2) Enemy 초기화
         if (enemyController != null)
             enemyController.ResetAllEnemies();
 
-        // 3) 판정 상태 초기화(다음 루프 꼬임 방지)
+        //// 3) 판정 상태 초기화(다음 루프 꼬임 방지)
+        //fixCommitted = false;
+        //fixedSideA = false;
+
+        //// 4) 루프 재시작(현재 정책: 즉시 1층부터 재패턴)
+        //floor = 1;
+        //isEnemy();
+        //NotifyFloorChanged();
+        //UpdateEnemyState();
+        //PickActionTrigger();
+
+        //isKilling = false;
+        // 판정 상태 초기화
         fixCommitted = false;
         fixedSideA = false;
 
-        // 4) 루프 재시작(현재 정책: 즉시 1층부터 재패턴)
-        floor = 1;
-        isEnemy();
-        NotifyFloorChanged();
-        UpdateEnemyState();
-        PickActionTrigger();
+        // 트리거는 전부 잠그는 게 안전 (죽은 상태에서 밟아도 발동 안하게)
+        if (actionTriggers != null)
+        {
+            for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
+                if (actionTriggers[actionTriggerCount] != null)
+                    actionTriggers[actionTriggerCount].ActionTriggerLock();
+        }
 
+        StartCoroutine(KillTestRoutine());
+
+    }
+    System.Collections.IEnumerator KillTestRoutine()
+    {
+        // 0) 테스트용 대기(나중에 “리셋 버튼 눌림 대기”로 교체할 부분)
+        yield return new WaitForSeconds(restartDelay);
+
+        // 1) 플레이어 원위치 복귀(원래 위치에서 다시 시작)
+        if (playerRoot != null)
+        {
+            playerRoot.SetPositionAndRotation(playerSpawnPos, playerSpawnRot);
+        }
+
+        // 2) 루프 재시작
+        RestartAfterKill();
+
+        // 3) Kill 가드 해제
         isKilling = false;
     }
+    public void RestartAfterKill()
+    {
+        if (actionTriggers != null)
+        {
+            for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
+                if (actionTriggers[actionTriggerCount] != null)
+                    actionTriggers[actionTriggerCount].ActionTriggerUnlock();
+        }
 
+
+        if (playerController != null) playerController.Revive();
+
+        // 상태 초기화
+        fixCommitted = false;
+        fixedSideA = false;
+
+        // 1층부터 재시작
+        floor = 1;
+        NotifyFloorChanged();
+
+        // 새 루프 패턴 세팅
+        isEnemy();
+        UpdateEnemyState();
+        PickActionTrigger();
+    }
 
     //범용 Enemy리셋 함수
     public void OnEnemyEnd()

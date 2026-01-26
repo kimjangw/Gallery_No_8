@@ -11,7 +11,7 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
 
     [Header("Charge / Kill")]
     public float chargeTime = 1.0f;      // Strong 누적 목표 시간
-    public float killDistance = 1.1f;    // 이 거리 이내면 Kill
+    public float killDistance = 2.5f;    // 이 거리 이내면 Kill
     public float repathInterval = 0.15f; // 목적지 갱신 주기
 
     [Header("Rush Speed")]
@@ -24,6 +24,9 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
     public float navSampleRadius = 1.5f;   // NavMesh 이탈 보정 반경
     public float spawnSampleRadius = 2.0f; // 스폰 복귀 보정 반경
 
+    [Header("Debug")]
+    public bool debugLog = true;
+
     NavMeshAgent agent;
 
     bool actionStarted;   // StartAction 이후 true
@@ -34,7 +37,9 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
     Vector3 spawnPos;        // 최초 배치 위치
     Quaternion spawnRot;     // 최초 배치 회전
 
-    // 컴포넌트/스폰 캐싱 + 초기 정지
+    // Kill 중복 방지(연동 체크 시 중요)
+    bool killSent;
+
     void Awake()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -44,6 +49,17 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
 
         ResetInternalState();
         StopAgent();
+
+        if (debugLog)
+        {
+            Debug.Log(
+                "[Enemy3] Awake\n" +
+                " - agent=" + (agent != null) + "\n" +
+                " - loopManager=" + (loopManager != null) + "\n" +
+                " - player=" + (player != null) + "\n" +
+                " - sensor=" + (sensor != null)
+            );
+        }
     }
 
     // 루프에서 선택되었을 때: 대기 상태
@@ -52,6 +68,8 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
         ResetInternalState();
         StopAgent();
         EnsureOnNavMesh();
+
+        if (debugLog) Debug.Log("[Enemy3] Ready()");
     }
 
     // ActionTrigger 신호: 차지 시작(Strong 누적을 기다림)
@@ -60,14 +78,26 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
         ResetInternalState();
         actionStarted = true;
 
+        if (debugLog) Debug.Log("[Enemy3] StartAction() called");
+
         if (agent == null || sensor == null || player == null)
         {
+            if (debugLog)
+            {
+                Debug.LogWarning(
+                    "[Enemy3] StartAction() FAIL: missing refs\n" +
+                    " - agent=" + (agent != null) +
+                    " sensor=" + (sensor != null) +
+                    " player=" + (player != null)
+                );
+            }
             Deactivate();
             return;
         }
 
         if (!EnsureOnNavMesh())
         {
+            if (debugLog) Debug.LogWarning("[Enemy3] StartAction() FAIL: agent not on NavMesh");
             Deactivate();
             return;
         }
@@ -78,6 +108,7 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
     // 패턴 중지(상태만 정리)
     public void Deactivate()
     {
+        if (debugLog) Debug.Log("[Enemy3] Deactivate()");
         ResetInternalState();
         StopAgent();
     }
@@ -85,6 +116,7 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
     // 강제 리셋(스폰 복귀 + 상태 리셋)
     public void ResetEnemy()
     {
+        if (debugLog) Debug.Log("[Enemy3] ResetEnemy()");
         ResetToSpawn();
         Deactivate();
     }
@@ -92,6 +124,7 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
     // 트랜지션 직후(스폰 복귀 + 상태 리셋)
     public void OnTransitionReset()
     {
+        if (debugLog) Debug.Log("[Enemy3] OnTransitionReset()");
         ResetToSpawn();
         Deactivate();
     }
@@ -99,34 +132,39 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
     void Update()
     {
         if (!actionStarted) return;
+
         if (agent == null || sensor == null || player == null) return;
         if (!EnsureOnNavMesh()) return;
 
         // 1) 차지 단계: Strong이면 누적 증가, Strong이 끊겨도 누적 유지
         if (!chargingDone)
         {
-            // 차지 중에는 항상 응시(회전만)
             FacePlayer(faceTurnSpeed);
 
             if (sensor.state == EnemySensol.State.Strong)
             {
                 chargeAccum += Time.deltaTime;
 
+                if (debugLog)
+                {
+                    Debug.Log("[Enemy3] Charging... accum=" + chargeAccum.ToString("F2") +
+                              " / " + chargeTime.ToString("F2"));
+                }
+
                 if (chargeAccum >= chargeTime)
                 {
                     chargingDone = true;
 
-                    // ✅ 누적 완료 순간에 돌진 시작
+                    if (debugLog) Debug.Log("[Enemy3] Charge DONE → Rush start");
+
                     agent.speed = rushSpeed;
                     agent.isStopped = false;
                     agent.SetDestination(player.position);
                     repathTimer = repathInterval;
-
                     return;
                 }
             }
 
-            // Strong이 아니면: 정지 유지 + 누적값은 그대로 둠
             StopAgent();
             return;
         }
@@ -141,23 +179,47 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
             repathTimer = repathInterval;
         }
 
-        if (Vector3.Distance(transform.position, player.position) <= killDistance)
+        float dist = Vector3.Distance(transform.position, player.position);
+
+        if (debugLog)
         {
-            if (loopManager != null) loopManager.OnEnemyKill();
+            Debug.Log("[Enemy3] Rushing... dist=" + dist.ToString("F2") +
+                      " killDistance=" + killDistance.ToString("F2"));
+        }
+
+        if (dist <= killDistance)
+        {
+            SendKillOnce("distance");
             Deactivate();
         }
     }
 
-    // 내부 상태 리셋(스폰 복귀는 별도)
+    void SendKillOnce(string reason)
+    {
+        if (killSent) return;
+        killSent = true;
+
+        if (debugLog) Debug.Log("[Enemy3] KILL TRIGGERED (" + reason + ") → loopManager.OnEnemyKill()");
+
+        if (loopManager != null)
+        {
+            loopManager.OnEnemyKill();
+        }
+        else
+        {
+            if (debugLog) Debug.LogWarning("[Enemy3] loopManager is NULL. Kill not delivered.");
+        }
+    }
+
     void ResetInternalState()
     {
         actionStarted = false;
         chargingDone = false;
         chargeAccum = 0f;
         repathTimer = 0f;
+        killSent = false;
     }
 
-    // Agent 즉시 정지(NavMesh 위에서만)
     void StopAgent()
     {
         if (agent == null || !agent.enabled) return;
@@ -168,7 +230,6 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
         agent.velocity = Vector3.zero;
     }
 
-    // NavMesh 이탈 시 Warp로 예외 방지
     bool EnsureOnNavMesh()
     {
         if (agent == null || !agent.enabled) return false;
@@ -183,7 +244,6 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
         return false;
     }
 
-    // 최초 배치 위치/회전으로 복귀 + Agent 좌표 Warp 동기화
     void ResetToSpawn()
     {
         StopAgent();
@@ -203,7 +263,6 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
         }
     }
 
-    // 플레이어를 바라보도록 Y축 회전만 부드럽게 보간
     void FacePlayer(float turnSpeed)
     {
         Vector3 dir = player.position - transform.position;
