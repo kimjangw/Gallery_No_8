@@ -195,6 +195,81 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 29718983}
   m_CullTransparentMesh: 1
+--- !u!1 &443098390
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 443098391}
+  - component: {fileID: 443098393}
+  - component: {fileID: 443098392}
+  m_Layer: 5
+  m_Name: CCBadge
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &443098391
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 443098390}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1553748315}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: 0, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!114 &443098392
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 443098390}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_Material: {fileID: 0}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_RaycastTarget: 1
+  m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
+  m_Maskable: 1
+  m_OnCullStateChanged:
+    m_PersistentCalls:
+      m_Calls: []
+  m_Sprite: {fileID: 0}
+  m_Type: 0
+  m_PreserveAspect: 0
+  m_FillCenter: 1
+  m_FillMethod: 4
+  m_FillAmount: 1
+  m_FillClockwise: 1
+  m_FillOrigin: 0
+  m_UseSpriteMesh: 0
+  m_PixelsPerUnitMultiplier: 1
+--- !u!222 &443098393
+CanvasRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 443098390}
+  m_CullTransparentMesh: 1
 --- !u!1 &447247824
 GameObject:
   m_ObjectHideFlags: 0
@@ -344,17 +419,26 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "<align=left><size=90><b><color=#ffffff>Gallery NO. 8</color></b></size>\r\n\r\n\r\n<size=34><b><color=#FFB400>Name</color></b></size>\r\nJang
-    Woon Kim\r\n\r\n<size=34><b><color=#FFB400>Build</color></b></size>\r\nUnity
-    / C#\r\nSolo Development (3 Week)\r\n\r\n<size=48><b><color=#FFB400>[ Key Systems
-    ]</color></b></size>\r\n\r\n<size=30><b><color=#FFB400>Player Character</color></b></size>\r\nInput
-    System\r\nBlend Tree (2D Freeform Directional)\r\nAvatar Mask + IK Rigging\r\nAnimation
-    Rigging (Multi-Aim)\r\n\r\n<size=30><b><color=#FFB400>Enemy</color></b></size>\r\nNavMesh
-    Surface bake + NavMeshAgent\r\nSensor System (Strong / Weak / Blind)\r\n\r\n<size=30><b><color=#FFB400>Curtain</color></b></size>\r\nCloth
-    component\r\nShader Graph: double-sided rendering\r\n\r\n<size=34><b><color=#FFB400>Tools</color></b></size>\r\nUnity
-    6000.0.60f1, Visual Studio 2022, Git (GitHub)\r\n\r\n<size=34><b><color=#FFB400>Copyright</color></b></size>\r\n\xA9
-    2026 Jang Woon Kim. All rights reserved.\r\nThird-party assets are property of
-    their respective owners.\r\n</align>\r\n"
+  m_text: "<align=left><size=96><b><color=#ffffff>Gallery NO. 8</color></b></size>\r\n\r\n<size=42><b><color=#FFB400>Name</color></b></size>\r\n<size=36>Jang
+    Woon Kim</size>\r\n\r\n<size=42><b><color=#FFB400>Build</color></b></size>\r\n<size=34>Unity
+    / C#</size>\r\n<size=34>Solo Development (3 Weeks)</size>\r\n\r\n<size=56><b><color=#FFB400>[
+    Key Systems ]</color></b></size>\r\n\r\n<size=40><b><color=#FFB400>Player Character</color></b></size>\r\n<size=34>Input
+    System</size>\r\n<size=34>Blend Tree (2D Freeform Directional)</size>\r\n<size=34>Avatar
+    Mask + IK Rigging</size>\r\n<size=34>Animation Rigging (Multi-Aim)</size>\r\n\r\n<size=40><b><color=#FFB400>Enemy</color></b></size>\r\n<size=34>NavMesh
+    Surface bake + NavMeshAgent</size>\r\n<size=34>Sensor System (Strong / Weak /
+    Blind)</size>\r\n\r\n<size=40><b><color=#FFB400>Curtain</color></b></size>\r\n<size=34>Cloth
+    component</size>\r\n<size=34>Shader Graph: double-sided rendering</size>\r\n\r\n<size=42><b><color=#FFB400>Tools</color></b></size>\r\n<size=34>Unity
+    6000.0.60f1, Visual Studio 2022, Git (GitHub)</size>\r\n\r\n<size=42><b><color=#FFB400>Copyright</color></b></size>\r\n<size=30>\xA9
+    2026 Jang Woon Kim. All rights reserved.</size>\r\n<size=30>Third-party assets
+    are property of their respective owners.</size>\r\n\n<size=42><b><color=#FFB400>Third-Party
+    Assets (Sketchfab)</color></b></size>\r\n\r\n<size=34><b><color=#FFB400>CC BY</color></b></size>\r\n<size=30>\u201CWeeping
+    Angel All poses\u201D \u2014 NO DONT EAT ME CASEOH (Ferris wheel) \u2014 Sketchfab</size>\r\n\r\n<size=34><b><color=#FFB400>CC0</color></b></size>\r\n<size=30>\u201CHl.
+    Margareta\u201D \u2014 noe-3d.at \u2014 Sketchfab</size>\r\n<size=30>\u201CSculpture
+    \u2018Bust of R\xF3\u017Ca Loewenfeld\u2019\u201D \u2014 Virtual Museums of Ma\u0142opolska
+    \u2014 Sketchfab</size>\r\n<size=30>\u201CL\xF6we\u201D \u2014 noe-3d.at \u2014
+    Sketchfab</size>\r\n<size=30>\u201CHl. Nepomuk\u201D \u2014 noe-3d.at \u2014
+    Sketchfab</size>\r\n\r\n<size=26>Note: CC BY assets require attribution. CC0
+    assets are public domain.</size>\n\n</align>\r\n"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -543,6 +627,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 584594675}
+  - {fileID: 443098391}
   m_Father: {fileID: 29718984}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
