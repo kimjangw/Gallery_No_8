@@ -721,7 +721,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 370, y: 0}
-  m_SizeDelta: {x: 200, y: 50}
+  m_SizeDelta: {x: 100, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &173936108
 MonoBehaviour:
@@ -1691,8 +1691,38 @@ MonoBehaviour:
   sounds:
   - name: Title_BGM
     clip: {fileID: 8300000, guid: 4a840930f352cb944bfba23375110a0a, type: 3}
-    volume: 0.693
-    pitch: 0.2
+    volume: 0.7
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: Far_Drop
+    clip: {fileID: 8300000, guid: 7a5c0b0cc3ad64b45b537d1856b5841e, type: 3}
+    volume: 0.7
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: Mid_Drop
+    clip: {fileID: 8300000, guid: ef3363036030e6b41a01bbde9e2921ee, type: 3}
+    volume: 0.7
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: Near_Drop
+    clip: {fileID: 8300000, guid: d75f22ad3b736aa45acee5411178f1f9, type: 3}
+    volume: 0.7
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: Throw_drop
+    clip: {fileID: 8300000, guid: bd335bd0e2babf1428d73e08c0e775c6, type: 3}
+    volume: 0.7
+    pitch: 1
+    loop: 0
+    source: {fileID: 0}
+  - name: ston_Move
+    clip: {fileID: 8300000, guid: 2bd97bfde5e7ea044be32e1e1766a32e, type: 3}
+    volume: 0.7
+    pitch: 1
     loop: 0
     source: {fileID: 0}
   masterVolume: 1
@@ -2762,7 +2792,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 370, y: -180}
-  m_SizeDelta: {x: 200, y: 50}
+  m_SizeDelta: {x: 100, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1157483177
 MonoBehaviour:
@@ -3618,7 +3648,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 370, y: 180}
-  m_SizeDelta: {x: 200, y: 50}
+  m_SizeDelta: {x: 100, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1883594018
 MonoBehaviour:
