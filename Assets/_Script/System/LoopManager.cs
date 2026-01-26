@@ -24,6 +24,12 @@ public class LoopManager : MonoBehaviour
     public ActionTrigger[] actionTriggers;
 
 
+    [Header("Player (Kill Handling)")]
+    public PlayerController playerController;
+
+    bool isKilling = false;
+
+
     //Fix확인용 변수
     public bool fixCommitted = false;
     //어느쪽 Fix인지 확인
@@ -43,6 +49,8 @@ public class LoopManager : MonoBehaviour
     public void OnTransition(TransitionHub transHub)
     {
         Debug.Log("[LOOP] OnTransition called. floor=" + floor + ", fixCommitted=" + fixCommitted);
+        
+        if (playerController != null && playerController.IsDead()) return;
 
         if (floor == 0)
         {
@@ -140,18 +148,33 @@ public class LoopManager : MonoBehaviour
     // Enemy에의한 사망시 쓰이는 함수.
     public void OnEnemyKill()
     {
+        if (isKilling) return; // 중복 Kill 방지
+        isKilling = true;
+
         Debug.Log("[LOOP] Kill 발생 → Loop Reset");
-        //kill시 Enemy초기화.
+
+        // 1) Player 연출/입력락
+        if (playerController != null)
+            playerController.OnKilled();
+
+        // 2) Enemy 초기화
         if (enemyController != null)
             enemyController.ResetAllEnemies();
 
-        //kill후 새로운 게임 생성.
+        // 3) 판정 상태 초기화(다음 루프 꼬임 방지)
+        fixCommitted = false;
+        fixedSideA = false;
+
+        // 4) 루프 재시작(현재 정책: 즉시 1층부터 재패턴)
         floor = 1;
-        isEnemy();            // Enemy 존재 유무 새로 정하기.
-        NotifyFloorChanged(); // 층수 최신화
-        UpdateEnemyState();   // 패턴존재에 다른 Enemy세팅
-        PickActionTrigger();  // ActionTrigger 선택
+        isEnemy();
+        NotifyFloorChanged();
+        UpdateEnemyState();
+        PickActionTrigger();
+
+        isKilling = false;
     }
+
 
     //범용 Enemy리셋 함수
     public void OnEnemyEnd()

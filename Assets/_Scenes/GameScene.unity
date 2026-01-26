@@ -1278,6 +1278,7 @@ MonoBehaviour:
   - {fileID: 1796227556}
   - {fileID: 1841785239}
   - {fileID: 532305825}
+  playerController: {fileID: 0}
   fixCommitted: 0
 --- !u!4 &301468672 stripped
 Transform:
@@ -4264,6 +4265,7 @@ GameObject:
   - component: {fileID: 819437847}
   - component: {fileID: 819437846}
   - component: {fileID: 819437849}
+  - component: {fileID: 819437850}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -4389,6 +4391,23 @@ MonoBehaviour:
     m_MipBias: 0
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
+--- !u!114 &819437850
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 819437845}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 172515602e62fb746b5d573b38a5fe58, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_IsGlobal: 1
+  priority: 0
+  blendDistance: 0
+  weight: 1
+  sharedProfile: {fileID: 11400000, guid: 10fc4df2da32a41aaa32d77bc913491c, type: 2}
 --- !u!1 &822660767
 GameObject:
   m_ObjectHideFlags: 0
@@ -5026,9 +5045,10 @@ MonoBehaviour:
   sampleRadius: 3
   killAfterThirdTeleport: 1
   farPercent: 1
-  midPercent: 0.7
+  midPercent: 0.5
   nearPercent: 0.3
-  faceTurnSpeed: 6
+  snapLookOnStart: 1
+  startLookDelay: 0
 --- !u!114 &922265558
 MonoBehaviour:
   m_ObjectHideFlags: 0

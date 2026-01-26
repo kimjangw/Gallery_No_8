@@ -144,13 +144,14 @@ public class EnemySensol : MonoBehaviour
         Vector3 pos = transform.position + Vector3.up * labelHeight;
 
         string txt =
-            $"[{name}]\n" +
-            $"Picked: {isPicked} (my={myIndex}, cur={pickedIndex})\n" +
-            $"State: {state}\n" +
-            $"Flash: {flashSeen}\n" +
-            $"Cam:   {cameraSeen}\n" +
-            $"Lost:  {lostEvent}\n" +
-            $"Dist:  {distance:F1}\n";
+          $"[{name}]\n" +
+          $"Picked: {isPicked} (my={myIndex}, cur={pickedIndex})\n" +  // 타겟 선정 정보 (내 Index, 선택 Index)
+          $"State: {state}\n" +                                        // 현재 인식 상태
+          $"Flash: {flashSeen}\n" +                                    // 손전등(Flashlight) 감지 여부
+          $"Cam:   {cameraSeen}\n" +                                   // 카메라 시야(FOV)에 인지되었는지 여부
+          $"Lost:  {lostEvent}\n" +                                    // 인지 → 손실 전환 이벤트 발생 여부
+          $"Dist:  {distance:F1}\n";                                   // Player와 거리
+
 
         Handles.Label(pos, txt);
     }

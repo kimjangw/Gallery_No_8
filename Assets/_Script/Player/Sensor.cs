@@ -38,7 +38,7 @@ public class PlayerSensor : MonoBehaviour
         {
             if (enemy == null) continue;
 
-            EnemySensol  es = enemy.GetComponent<EnemySensol >();
+            EnemySensol  es = enemy.GetComponent<EnemySensol>();
             if (!es) continue;
 
             Vector3 ePos = enemy.position;
@@ -46,7 +46,7 @@ public class PlayerSensor : MonoBehaviour
             Vector3 toE_light = ePos - lightPos;
             float dist = toE_light.magnitude;
 
-            // 1. 기본 거리 오래기
+            // 1. 기본 거리 
             bool inDistance = dist <= sightDistance;
 
             // 2. 카메라 기반 FOV (히스테리시스)
