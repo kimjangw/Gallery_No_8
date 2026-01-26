@@ -86,6 +86,12 @@ public class SceneLoader : MonoBehaviour
     }
     */
 
+
+    public void LoadEnd()
+    {
+        LoadScene("End");
+    }
+
     void Update()
     {
         if (Input.GetKeyUp(KeyCode.Alpha1))

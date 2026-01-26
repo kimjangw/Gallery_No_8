@@ -49,6 +49,9 @@ public class PlayerController : MonoBehaviour
             float animSpeed = isLeftShiftPressed ? 2f : 1f;
             anim.SetFloat(hashMoveX, input.x);
             anim.SetFloat(hashMoveY, input.y * animSpeed);
+
+
+         
         }
         else
         {
@@ -56,6 +59,8 @@ public class PlayerController : MonoBehaviour
             anim.SetFloat(hashMoveY, 0f);
         }
     }
+
+
 
     // ===== 외부 공개 API: 딱 2개만 =====
 

@@ -6,6 +6,9 @@ public class LoopManager : MonoBehaviour
     public bool isEnemyFlag = false; // 이번 루프의 몬스터 존재 여부
     public int floor = 0;            // 현재 층수
 
+    [Header("End Condition")]
+    public int clearFloor = 8;
+
     [Header("Refs")]
     public EnemyController enemyController; // 루프 중 Enemy 제어를 위해 연결
 
@@ -39,12 +42,17 @@ public class LoopManager : MonoBehaviour
     [Header("Kill Test (Coroutine)")]
     public Transform playerRoot;          // 플레이어 루트 Transform(위치/회전 복귀용)
     public float restartDelay = 2.0f;     // 테스트용 대기 시간(나중에 버튼으로 교체)
+    public DeathUIController deathUI;
+
 
     Vector3 playerSpawnPos;
     Quaternion playerSpawnRot;
 
     void Awake()
     {
+        if (playerRoot == null && playerController != null)
+            playerRoot = playerController.transform;
+
         if (playerRoot != null)
         {
             playerSpawnPos = playerRoot.position;
@@ -100,6 +108,15 @@ public class LoopManager : MonoBehaviour
         //정답 오답에 따른 층수 판정
         if (correct) floor++;
         else floor = 1;
+
+
+        // 클리어시 EndScene으로
+        if (floor > clearFloor)
+        {
+            SceneLoader.Instance.LoadEnd();
+            return;
+        }
+
 
         NotifyFloorChanged();   // 층 수 초기화
 
@@ -181,23 +198,11 @@ public class LoopManager : MonoBehaviour
         if (enemyController != null)
             enemyController.ResetAllEnemies();
 
-        //// 3) 판정 상태 초기화(다음 루프 꼬임 방지)
-        //fixCommitted = false;
-        //fixedSideA = false;
-
-        //// 4) 루프 재시작(현재 정책: 즉시 1층부터 재패턴)
-        //floor = 1;
-        //isEnemy();
-        //NotifyFloorChanged();
-        //UpdateEnemyState();
-        //PickActionTrigger();
-
-        //isKilling = false;
-        // 판정 상태 초기화
+        // 3) 판정 상태 초기화(다음 루프 꼬임 방지)
         fixCommitted = false;
         fixedSideA = false;
 
-        // 트리거는 전부 잠그는 게 안전 (죽은 상태에서 밟아도 발동 안하게)
+        // 4) 트리거는 전부 잠그는 게 안전 (죽은 상태에서 밟아도 발동 안하게)
         if (actionTriggers != null)
         {
             for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
@@ -205,28 +210,33 @@ public class LoopManager : MonoBehaviour
                     actionTriggers[actionTriggerCount].ActionTriggerLock();
         }
 
-        StartCoroutine(KillTestRoutine());
-
+        // 5) UI 표시(버튼 대기)
+        if (deathUI != null)
+            deathUI.Show();
     }
-    System.Collections.IEnumerator KillTestRoutine()
-    {
-        // 0) 테스트용 대기(나중에 “리셋 버튼 눌림 대기”로 교체할 부분)
-        yield return new WaitForSeconds(restartDelay);
 
-        // 1) 플레이어 원위치 복귀(원래 위치에서 다시 시작)
-        if (playerRoot != null)
-        {
-            playerRoot.SetPositionAndRotation(playerSpawnPos, playerSpawnRot);
-        }
 
-        // 2) 루프 재시작
-        RestartAfterKill();
-
-        // 3) Kill 가드 해제
-        isKilling = false;
-    }
     public void RestartAfterKill()
     {
+        if (playerRoot != null)
+        {
+            CharacterController playerCC = playerRoot.GetComponent<CharacterController>();
+            bool wasEnabled = false;
+
+            if (playerCC != null)
+            {
+                wasEnabled = playerCC.enabled;
+                playerCC.enabled = false;
+            }
+
+            playerRoot.SetPositionAndRotation(playerSpawnPos, playerSpawnRot);
+
+            if (playerCC != null)
+                playerCC.enabled = wasEnabled;
+        }
+
+
+
         if (actionTriggers != null)
         {
             for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
@@ -249,6 +259,9 @@ public class LoopManager : MonoBehaviour
         isEnemy();
         UpdateEnemyState();
         PickActionTrigger();
+
+        isKilling = false; // Kill 가드 해제
+
     }
 
     //범용 Enemy리셋 함수
