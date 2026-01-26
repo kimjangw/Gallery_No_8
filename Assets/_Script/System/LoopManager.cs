@@ -6,6 +6,9 @@ public class LoopManager : MonoBehaviour
     public bool isEnemyFlag = false; // 이번 루프의 몬스터 존재 여부
     public int floor = 0;            // 현재 층수
 
+    [Header("End Condition")]
+    public int clearFloor = 8;
+
     [Header("Refs")]
     public EnemyController enemyController; // 루프 중 Enemy 제어를 위해 연결
 
@@ -24,10 +27,39 @@ public class LoopManager : MonoBehaviour
     public ActionTrigger[] actionTriggers;
 
 
+    [Header("Player (Kill Handling)")]
+    public PlayerController playerController;
+
+    bool isKilling = false;
+
+
     //Fix확인용 변수
     public bool fixCommitted = false;
     //어느쪽 Fix인지 확인
     bool fixedSideA = false;
+
+
+    [Header("Kill Test (Coroutine)")]
+    public Transform playerRoot;          // 플레이어 루트 Transform(위치/회전 복귀용)
+    public float restartDelay = 2.0f;     // 테스트용 대기 시간(나중에 버튼으로 교체)
+    public DeathUIController deathUI;
+
+
+    Vector3 playerSpawnPos;
+    Quaternion playerSpawnRot;
+
+    void Awake()
+    {
+        if (playerRoot == null && playerController != null)
+            playerRoot = playerController.transform;
+
+        if (playerRoot != null)
+        {
+            playerSpawnPos = playerRoot.position;
+            playerSpawnRot = playerRoot.rotation;
+        }
+    }
+
 
     public void OnFix(bool sideA)
     {
@@ -43,6 +75,8 @@ public class LoopManager : MonoBehaviour
     public void OnTransition(TransitionHub transHub)
     {
         Debug.Log("[LOOP] OnTransition called. floor=" + floor + ", fixCommitted=" + fixCommitted);
+
+        if (playerController != null && playerController.isDead) return;
 
         if (floor == 0)
         {
@@ -74,6 +108,15 @@ public class LoopManager : MonoBehaviour
         //정답 오답에 따른 층수 판정
         if (correct) floor++;
         else floor = 1;
+
+
+        // 클리어시 EndScene으로
+        if (floor > clearFloor)
+        {
+            SceneLoader.Instance.LoadEnd();
+            return;
+        }
+
 
         NotifyFloorChanged();   // 층 수 초기화
 
@@ -119,6 +162,8 @@ public class LoopManager : MonoBehaviour
     //LoopManager에서 전환시 다른 함수들에 초기화를 중계
     public void TransitionReset()
     {
+        if(playerController != null && playerController.isDead) return;
+
         // Fix라인 Lock해제.
         if (fixLineA != null) fixLineA.ResetFix();
         if (fixLineB != null) fixLineB.ResetFix();
@@ -140,17 +185,83 @@ public class LoopManager : MonoBehaviour
     // Enemy에의한 사망시 쓰이는 함수.
     public void OnEnemyKill()
     {
+        if (isKilling) return; // 중복 Kill 방지
+        isKilling = true;
+
         Debug.Log("[LOOP] Kill 발생 → Loop Reset");
-        //kill시 Enemy초기화.
+
+        // 1) Player 연출/입력락
+        if (playerController != null)
+            playerController.Die();
+
+        // 2) Enemy 초기화
         if (enemyController != null)
             enemyController.ResetAllEnemies();
 
-        //kill후 새로운 게임 생성.
+        // 3) 판정 상태 초기화(다음 루프 꼬임 방지)
+        fixCommitted = false;
+        fixedSideA = false;
+
+        // 4) 트리거는 전부 잠그는 게 안전 (죽은 상태에서 밟아도 발동 안하게)
+        if (actionTriggers != null)
+        {
+            for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
+                if (actionTriggers[actionTriggerCount] != null)
+                    actionTriggers[actionTriggerCount].ActionTriggerLock();
+        }
+
+        // 5) UI 표시(버튼 대기)
+        if (deathUI != null)
+            deathUI.Show();
+    }
+
+
+    public void RestartAfterKill()
+    {
+        if (playerRoot != null)
+        {
+            CharacterController playerCC = playerRoot.GetComponent<CharacterController>();
+            bool wasEnabled = false;
+
+            if (playerCC != null)
+            {
+                wasEnabled = playerCC.enabled;
+                playerCC.enabled = false;
+            }
+
+            playerRoot.SetPositionAndRotation(playerSpawnPos, playerSpawnRot);
+
+            if (playerCC != null)
+                playerCC.enabled = wasEnabled;
+        }
+
+
+
+        if (actionTriggers != null)
+        {
+            for (int actionTriggerCount = 0; actionTriggerCount < actionTriggers.Length; actionTriggerCount++)
+                if (actionTriggers[actionTriggerCount] != null)
+                    actionTriggers[actionTriggerCount].ActionTriggerUnlock();
+        }
+
+
+        if (playerController != null) playerController.Revive();
+
+        // 상태 초기화
+        fixCommitted = false;
+        fixedSideA = false;
+
+        // 1층부터 재시작
         floor = 1;
-        isEnemy();            // Enemy 존재 유무 새로 정하기.
-        NotifyFloorChanged(); // 층수 최신화
-        UpdateEnemyState();   // 패턴존재에 다른 Enemy세팅
-        PickActionTrigger();  // ActionTrigger 선택
+        NotifyFloorChanged();
+
+        // 새 루프 패턴 세팅
+        isEnemy();
+        UpdateEnemyState();
+        PickActionTrigger();
+
+        isKilling = false; // Kill 가드 해제
+
     }
 
     //범용 Enemy리셋 함수

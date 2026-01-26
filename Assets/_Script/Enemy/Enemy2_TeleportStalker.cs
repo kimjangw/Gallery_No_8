@@ -9,26 +9,31 @@ public class Enemy2_TeleportStalker : MonoBehaviour, EnemyPattern
     public EnemySensol sensor;
 
     [Header("Settings")]
-    public float behindDistance = 2.2f;   // 기준 거리(100%)
+    public float behindDistance = 2.2f;   // "플레이어~스폰 라인"에서 플레이어 기준 거리(스텝 기준)
     public float sampleRadius = 3.0f;     // NavMesh 샘플 반경
     public bool killAfterThirdTeleport = true;
 
     [Header("Teleport Steps (percent of behindDistance)")]
-    [Range(0f, 1f)] public float farPercent = 1.00f;   
-    [Range(0f, 1f)] public float midPercent = 0.50f;   
-    [Range(0f, 1f)] public float nearPercent = 0.20f;  
+    [Range(0f, 1f)] public float farPercent = 1.00f;   // 1st
+    [Range(0f, 1f)] public float midPercent = 0.50f;   // 2nd
+    [Range(0f, 1f)] public float nearPercent = 0.20f;  // 3rd
 
-    [Header("Face")]
-    public float faceTurnSpeed = 6.0f;
+    [Header("Start Look (one-shot)")]
+    public bool snapLookOnStart = true;   // 시작 시 1회 "쨘" 연출
+    public float startLookDelay = 0.0f;   // 필요하면 0.05 같은 딜레이로 연출 가능(기본 0)
 
     NavMeshAgent agent;
 
     bool active;
-    int teleportStep; // 0,1,2
+    int teleportStep; // 0,1,2 ...
     EnemySensol.State prevState;
 
     Vector3 spawnPos;
     Quaternion spawnRot;
+
+    // 시작 인지용 1회 회전 가드
+    bool didStartLook;
+    float startLookTimer;
 
     void Awake()
     {
@@ -37,10 +42,12 @@ public class Enemy2_TeleportStalker : MonoBehaviour, EnemyPattern
         spawnPos = transform.position;
         spawnRot = transform.rotation;
 
-        // 초기값
         active = false;
         teleportStep = 0;
         prevState = EnemySensol.State.Blind;
+
+        didStartLook = false;
+        startLookTimer = 0f;
 
         StopAgentHard();
         // enabled는 끄지 않음(씬에서 지속 사용)
@@ -50,18 +57,19 @@ public class Enemy2_TeleportStalker : MonoBehaviour, EnemyPattern
     // EnemyPattern
     // -----------------------------
 
-    // 루프에서 선택되었을 때: 대기 상태(즉시 행동 X)
     public void Ready()
     {
         active = false;
         teleportStep = 0;
         prevState = (sensor != null) ? sensor.state : EnemySensol.State.Blind;
 
+        didStartLook = false;
+        startLookTimer = 0f;
+
         StopAgentHard();
         ResetToSpawn();
     }
 
-    // ActionTrigger 신호: 패턴 활성화
     public void StartAction()
     {
         if (player == null || sensor == null)
@@ -74,30 +82,39 @@ public class Enemy2_TeleportStalker : MonoBehaviour, EnemyPattern
         teleportStep = 0;
         prevState = sensor.state;
 
+        didStartLook = false;
+        startLookTimer = startLookDelay;
+
         StopAgentHard();
+
+        // (요구 1) 시작 인지: 최초 1회만 플레이어 바라보기(즉시 or 딜레이 후)
+        if (snapLookOnStart && startLookDelay <= 0f)
+        {
+            SnapFacePlayerOnce();
+        }
     }
 
-    // 패턴 중지(상태만 정리)
     public void Deactivate()
     {
         active = false;
         teleportStep = 0;
 
+        didStartLook = false;
+        startLookTimer = 0f;
+
         StopAgentHard();
         // enabled는 끄지 않음
     }
 
-    // 강제 리셋(스폰 복귀 + 비활성)
     public void ResetEnemy()
     {
         ResetToSpawn();
         Deactivate();
     }
 
-    // 트랜지션 직후(스폰 복귀 + 비활성)
     public void OnTransitionReset()
     {
-        ResetEnemy(); // 완전 동일 동작이므로 공용 처리
+        ResetEnemy();
     }
 
     void Update()
@@ -105,27 +122,30 @@ public class Enemy2_TeleportStalker : MonoBehaviour, EnemyPattern
         if (!active) return;
         if (player == null || sensor == null) return;
 
+        // 시작 연출 딜레이 처리(필요 시)
+        if (snapLookOnStart && !didStartLook && startLookDelay > 0f)
+        {
+            startLookTimer -= Time.deltaTime;
+            if (startLookTimer <= 0f)
+            {
+                SnapFacePlayerOnce();
+            }
+        }
+
         EnemySensol.State currentState = sensor.state;
 
-        // B안 핵심: Weak/Strong -> Blind "전환 순간"에만 1회 워프
+        // Weak/Strong -> Blind "전환 순간"에만 1회 워프
         bool becameBlindThisFrame = (prevState != EnemySensol.State.Blind && currentState == EnemySensol.State.Blind);
 
         if (becameBlindThisFrame)
         {
-            DoTeleportStep();
+            bool killed = DoTeleportStep();
+            if (killed) return;
+        }
 
-            // 3번째(teleportStep==2) 이후 kill 조건
-            if (killAfterThirdTeleport && teleportStep >= 3)
-            {
-                DoKill();
-                return;
-            }
-        }
-        else
-        {
-            // 워프가 없을 땐 기본 연출: 플레이어 바라보기 정도만
-            FacePlayer(faceTurnSpeed);
-        }
+        // (요구 1) 지속 추적 회전 제거:
+        // - 워프가 없을 때도 계속 바라보지 않음
+        // - FacePlayer() 호출은 StartAction의 1회 Snap만 사용
 
         prevState = currentState;
     }
@@ -134,11 +154,32 @@ public class Enemy2_TeleportStalker : MonoBehaviour, EnemyPattern
     // Teleport Step Logic
     // -----------------------------
 
-    void DoTeleportStep()
+    // return: killed?
+    bool DoTeleportStep()
     {
-        float distance = GetStepDistance(teleportStep);
+        float stepDistanceFromPlayer = GetStepDistance(teleportStep);
 
-        Vector3 desired = player.position - player.forward * distance;
+        // (요구 2) "플레이어 뒤"가 아니라 "스폰 <-> 플레이어" 사이 선분 위로
+        Vector3 playerPosition = player.position;
+        Vector3 playerToSpawn = spawnPos - playerPosition;
+
+        float playerToSpawnDistance = playerToSpawn.magnitude;
+        if (playerToSpawnDistance < 0.001f)
+        {
+            // 스폰과 플레이어가 거의 같은 위치면 안전 처리: 그냥 스폰 기준으로 이동하지 않음
+            teleportStep += 1;
+            return CheckKillAfterStep();
+        }
+
+        Vector3 playerToSpawnDir = playerToSpawn / playerToSpawnDistance;
+
+        // 선분 위를 보장하려면, 플레이어 기준 거리 = min(요청거리, 스폰까지 거리-여유)
+        float safetyMargin = 0.05f;
+        float clampedDistance = stepDistanceFromPlayer;
+        if (clampedDistance > playerToSpawnDistance - safetyMargin)
+            clampedDistance = Mathf.Max(0f, playerToSpawnDistance - safetyMargin);
+
+        Vector3 desired = playerPosition + playerToSpawnDir * clampedDistance;
 
         if (NavMesh.SamplePosition(desired, out NavMeshHit hit, sampleRadius, NavMesh.AllAreas))
         {
@@ -146,31 +187,33 @@ public class Enemy2_TeleportStalker : MonoBehaviour, EnemyPattern
                 agent.Warp(hit.position);
             else
                 transform.position = hit.position;
-
-            // 워프 직후는 즉시 바라보게(점프스퀘어 연출)
-            FacePlayer(999f);
         }
         else
         {
-            // 샘플 실패 시: 그냥 Transform 이동(최후 안전장치)
+            // 샘플 실패 시: Transform 이동(최후 안전장치)
             transform.position = desired;
-            FacePlayer(999f);
         }
 
         teleportStep += 1;
 
-        // 3번째 워프 직후 Kill을 원하면 여기서 처리해도 됨
+        return CheckKillAfterStep();
+    }
+
+    bool CheckKillAfterStep()
+    {
         if (killAfterThirdTeleport && teleportStep >= 3)
         {
             DoKill();
+            return true;
         }
+        return false;
     }
 
     float GetStepDistance(int step)
     {
-        if (step == 0) return behindDistance * farPercent; // 1st: 100
-        if (step == 1) return behindDistance * midPercent; // 2nd: 70
-        return behindDistance * nearPercent;               // 3rd: 30
+        if (step == 0) return behindDistance * farPercent;
+        if (step == 1) return behindDistance * midPercent;
+        return behindDistance * nearPercent;
     }
 
     // -----------------------------
@@ -183,16 +226,18 @@ public class Enemy2_TeleportStalker : MonoBehaviour, EnemyPattern
         Deactivate();
     }
 
-    void FacePlayer(float speed)
+    // 시작 인지용 1회만 사용
+    void SnapFacePlayerOnce()
     {
-        Vector3 dir = player.position - transform.position;
-        dir.y = 0f;
-        if (dir.sqrMagnitude < 0.0001f) return;
+        if (didStartLook) return;
+        didStartLook = true;
 
-        Quaternion target = Quaternion.LookRotation(dir.normalized, Vector3.up);
+        Vector3 direction = player.position - transform.position;
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.0001f) return;
 
-        if (speed >= 900f) transform.rotation = target;
-        else transform.rotation = Quaternion.Slerp(transform.rotation, target, Time.deltaTime * speed);
+        Quaternion targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+        transform.rotation = targetRotation;
     }
 
     void StopAgentHard()
