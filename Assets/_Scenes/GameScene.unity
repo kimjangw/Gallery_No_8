@@ -5141,7 +5141,7 @@ MonoBehaviour:
   loopManager: {fileID: 286086521}
   player: {fileID: 1205529394}
   sensor: {fileID: 922265558}
-  behindDistance: 2.2
+  behindDistance: 5
   sampleRadius: 3
   killAfterThirdTeleport: 1
   farPercent: 1
@@ -5665,7 +5665,7 @@ NavMeshAgent:
   m_Enabled: 1
   m_AgentTypeID: 0
   m_Radius: 20
-  m_Speed: 3.5
+  m_Speed: 6
   m_Acceleration: 8
   avoidancePriority: 50
   m_AngularSpeed: 120

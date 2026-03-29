@@ -18,6 +18,12 @@ public class Enemy5_Follower : MonoBehaviour, EnemyPattern
     [Header("NavMesh Safety")]
     public float sampleRadius = 1.5f; // NavMesh 이탈 시 보정 반경
 
+    [Header("Sound Settings")]
+    public float moveSoundInterval = 0.15f; // 천천히 다가오므로 소리 간격 약간 긺
+    public float minPitch = 0.6f;
+    public float maxPitch = 0.8f;
+    private float moveSoundTimer;
+
     NavMeshAgent agent;
 
     bool actionStarted; // StartAction 이후 true
@@ -142,6 +148,24 @@ public class Enemy5_Follower : MonoBehaviour, EnemyPattern
 
         Vector3 target = player.position + toMe * keepDistance;
         agent.SetDestination(target);
+
+        if (agent != null && !agent.isStopped && agent.velocity.sqrMagnitude > 0.1f)
+        {
+            moveSoundTimer -= Time.deltaTime;
+            if (moveSoundTimer <= 0f)
+            {
+                float randomPitch = Random.Range(minPitch, maxPitch);
+                if (SoundManager.Instance != null)
+                {
+                    SoundManager.Instance.Play3D("ston_Move", transform.position, 1f, randomPitch);
+                }
+                moveSoundTimer = moveSoundInterval;
+            }
+        }
+        else
+        {
+            moveSoundTimer = 0f;
+        }
     }
 
     // Agent 즉시 정지( NavMesh 위에서만 )

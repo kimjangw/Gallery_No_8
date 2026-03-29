@@ -9,7 +9,7 @@ public class Enemy2_TeleportStalker : MonoBehaviour, EnemyPattern
     public EnemySensol sensor;
 
     [Header("Settings")]
-    public float behindDistance = 2.2f;   // "플레이어~스폰 라인"에서 플레이어 기준 거리(스텝 기준)
+    public float behindDistance = 5f;   // "플레이어~스폰 라인"에서 플레이어 기준 거리(스텝 기준)
     public float sampleRadius = 3.0f;     // NavMesh 샘플 반경
     public bool killAfterThirdTeleport = true;
 
@@ -168,6 +168,7 @@ public class Enemy2_TeleportStalker : MonoBehaviour, EnemyPattern
         {
             // 스폰과 플레이어가 거의 같은 위치면 안전 처리: 그냥 스폰 기준으로 이동하지 않음
             teleportStep += 1;
+            PlayTeleportSound(teleportStep);
             return CheckKillAfterStep();
         }
 
@@ -195,10 +196,28 @@ public class Enemy2_TeleportStalker : MonoBehaviour, EnemyPattern
         }
 
         teleportStep += 1;
-
+        PlayTeleportSound(teleportStep);
         return CheckKillAfterStep();
     }
+    void PlayTeleportSound(int step)
+    {
+        // SoundManager가 없으면 에러 방지
+        if (SoundManager.Instance == null) return;
 
+        // 텔레포트 횟수(step)에 따라 다른 사운드 재생
+        if (step == 1)
+        {
+            SoundManager.Instance.Play("Far_Drop");
+        }
+        else if (step == 2)
+        {
+            SoundManager.Instance.Play("Mid_Drop");
+        }
+        else if (step >= 3)
+        {
+            SoundManager.Instance.Play("Near_Drop");
+        }
+    }
     bool CheckKillAfterStep()
     {
         if (killAfterThirdTeleport && teleportStep >= 3)

@@ -24,6 +24,12 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
     public float navSampleRadius = 1.5f;   // NavMesh 이탈 보정 반경
     public float spawnSampleRadius = 2.0f; // 스폰 복귀 보정 반경
 
+    [Header("Sound Settings")]
+    public float moveSoundInterval = 0.1f; // 돌진하므로 소리 간격을 짧게!
+    public float minPitch = 0.8f;
+    public float maxPitch = 1.0f;
+    private float moveSoundTimer;
+
     [Header("Debug")]
     public bool debugLog = true;
 
@@ -191,6 +197,23 @@ public class Enemy3_StareKill : MonoBehaviour, EnemyPattern
         {
             SendKillOnce("distance");
             Deactivate();
+        }
+        if (agent != null && !agent.isStopped && agent.velocity.sqrMagnitude > 0.1f)
+        {
+            moveSoundTimer -= Time.deltaTime;
+            if (moveSoundTimer <= 0f)
+            {
+                float randomPitch = Random.Range(minPitch, maxPitch);
+                if (SoundManager.Instance != null)
+                {
+                    SoundManager.Instance.Play3D("ston_Move", transform.position, 1f, randomPitch);
+                }
+                moveSoundTimer = moveSoundInterval;
+            }
+        }
+        else
+        {
+            moveSoundTimer = 0f;
         }
     }
 

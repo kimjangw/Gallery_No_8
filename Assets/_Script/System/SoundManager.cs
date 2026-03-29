@@ -89,9 +89,9 @@ public class SoundManager : MonoBehaviour
     }
 
     /// <summary>
-    /// SFX 재생 (기본 재생)
+    /// SFX 재생 (기본 재생 + 피치 조절 기능 추가 + 끊김 방지)
     /// </summary>
-    public void Play(string name, float volumeScale = 1f)
+    public void Play(string name, float volumeScale = 1f, float pitchOverride = -1f)
     {
         if (!soundDictionary.ContainsKey(name))
         {
@@ -101,10 +101,65 @@ public class SoundManager : MonoBehaviour
 
         Sound sound = soundDictionary[name];
 
-        sound.source.volume = masterVolume * sfxVolume * sound.volume * volumeScale;
-        sound.source.Play();
+        // 피치 설정: 인자로 들어온 값이 있으면 그것을 쓰고, 없으면 인스펙터 기본값 사용
+        if (pitchOverride > 0f)
+            sound.source.pitch = pitchOverride;
+        else
+            sound.source.pitch = sound.pitch;
 
-        print($"효과음 재생: {name}");
+        // 최종 볼륨 계산
+        float finalVolume = masterVolume * sfxVolume * sound.volume * volumeScale;
+
+        // [수정된 부분] 
+        // 기존 sound.source.Play()는 이전 소리를 강제로 끊어버림.
+        // PlayOneShot을 사용하면 이전 소리가 자연스럽게 끝까지 재생되면서 새로운 소리가 겹쳐짐!
+        sound.source.PlayOneShot(sound.clip, finalVolume);
+
+        // print($"효과음 재생: {name}"); // 디버그용 (필요시 주석 해제)
+    }
+
+    /// <summary>
+    /// 3D 공간 사운드 재생 (위치 기반, 임시 오브젝트 생성 방식)
+    /// </summary>
+    public void Play3D(string name, Vector3 position, float volumeScale = 1f, float pitchOverride = -1f)
+    {
+        if (!soundDictionary.ContainsKey(name))
+        {
+            print($"사운드 '{name}'을 찾을 수 없습니다");
+            return;
+        }
+
+        Sound sound = soundDictionary[name];
+
+        // 1. 소리가 날 위치에 투명한 임시 오브젝트 생성
+        GameObject tempAudioObj = new GameObject("3DSound_" + name);
+        tempAudioObj.transform.position = position;
+
+        // 2. AudioSource 컴포넌트 추가 및 클립 설정
+        AudioSource audioSource = tempAudioObj.AddComponent<AudioSource>();
+        audioSource.clip = sound.clip;
+
+        // 3. 3D 사운드 핵심 설정
+        audioSource.spatialBlend = 1f; // 1.0 = 완벽한 3D 사운드 (방향, 거리 적용)
+
+        // 맵 크기에 맞춰 조절하세요 (현재 설정: 3m 안에서는 100%, 20m 밖에서는 안 들림)
+        audioSource.minDistance = 3f;
+        audioSource.maxDistance = 30f;
+        audioSource.rolloffMode = AudioRolloffMode.Linear;
+
+        // 4. 볼륨 및 피치 적용
+        audioSource.volume = masterVolume * sfxVolume * sound.volume * volumeScale;
+
+        if (pitchOverride > 0f)
+            audioSource.pitch = pitchOverride;
+        else
+            audioSource.pitch = sound.pitch;
+
+        // 5. 소리 재생
+        audioSource.Play();
+
+        // 6. 메모리 관리: 사운드 클립의 재생 시간이 끝나면 임시 오브젝트 자동 파괴
+        Destroy(tempAudioObj, sound.clip.length);
     }
 
     /// <summary>
