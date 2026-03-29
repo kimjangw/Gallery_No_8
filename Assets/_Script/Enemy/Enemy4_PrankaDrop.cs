@@ -105,7 +105,15 @@ public class Enemy4_PrankaDrop : MonoBehaviour, EnemyPattern
 
         // 도착 후에는 그 자리에서 멈춰서 그대로 존재
         if (t >= 1f)
+        {
             isFlying = false;
+
+            // 🔊 목표 지점 도달(정지) 시 던지는 소리 재생
+            if (SoundManager.Instance != null)
+            {
+                SoundManager.Instance.Play("Throw_drop");
+            }
+        }
     }
 
     // 최초 배치 위치/회전으로 복귀

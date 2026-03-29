@@ -1697,19 +1697,19 @@ MonoBehaviour:
     source: {fileID: 0}
   - name: Far_Drop
     clip: {fileID: 8300000, guid: 7a5c0b0cc3ad64b45b537d1856b5841e, type: 3}
-    volume: 0.7
+    volume: 1
     pitch: 1
     loop: 0
     source: {fileID: 0}
   - name: Mid_Drop
     clip: {fileID: 8300000, guid: ef3363036030e6b41a01bbde9e2921ee, type: 3}
-    volume: 0.7
+    volume: 1
     pitch: 1
     loop: 0
     source: {fileID: 0}
   - name: Near_Drop
     clip: {fileID: 8300000, guid: d75f22ad3b736aa45acee5411178f1f9, type: 3}
-    volume: 0.7
+    volume: 1
     pitch: 1
     loop: 0
     source: {fileID: 0}

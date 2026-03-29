@@ -25,6 +25,12 @@ public class Enemy1_Weeping : MonoBehaviour, EnemyPattern
     public float navSampleRadius = 1.5f;
     public float spawnSampleRadius = 2.0f;
 
+    [Header("Sound Settings")]
+    public float moveSoundInterval = 0.2f;
+    public float minPitch = 0.7f;
+    public float maxPitch = 0.9f;
+    private float moveSoundTimer;
+
     NavMeshAgent agent;
 
     // 상태
@@ -137,7 +143,6 @@ public class Enemy1_Weeping : MonoBehaviour, EnemyPattern
                 isPointing = false;
 
                 // 아직 StartAction 전이면 Idle 비주얼로 복귀
-                // (추적 시작은 StartAction에서만)
                 if (!actionStarted)
                     SetStateIdle();
             }
@@ -153,25 +158,45 @@ public class Enemy1_Weeping : MonoBehaviour, EnemyPattern
         if (enemySensol.state == EnemySensol.State.Strong)
         {
             StopAgent();
-            return;
+        }
+        else
+        {
+            // Weak/Blind이면 이동
+            agent.isStopped = false;
+
+            repathTimer -= Time.deltaTime;
+            if (repathTimer <= 0f)
+            {
+                agent.SetDestination(player.position);
+                repathTimer = repathInterval;
+            }
+
+            t += Time.deltaTime;
+
+            if (Vector3.Distance(transform.position, player.position) <= killDistance || t >= killTime)
+            {
+                if (loopManager != null) loopManager.OnEnemyKill();
+                Deactivate();
+            }
         }
 
-        // Weak/Blind이면 이동
-        agent.isStopped = false;
-
-        repathTimer -= Time.deltaTime;
-        if (repathTimer <= 0f)
+        // [사운드 로직] 에이전트가 실제로 이동 중일 때만 사운드 재생
+        if (agent != null && !agent.isStopped && agent.velocity.sqrMagnitude > 0.1f)
         {
-            agent.SetDestination(player.position);
-            repathTimer = repathInterval;
+            moveSoundTimer -= Time.deltaTime;
+            if (moveSoundTimer <= 0f)
+            {
+                float randomPitch = Random.Range(minPitch, maxPitch);
+                if (SoundManager.Instance != null)
+                {
+                    SoundManager.Instance.Play3D("ston_Move", transform.position, 1f, randomPitch);
+                }
+                moveSoundTimer = moveSoundInterval;
+            }
         }
-
-        t += Time.deltaTime;
-
-        if (Vector3.Distance(transform.position, player.position) <= killDistance || t >= killTime)
+        else
         {
-            if (loopManager != null) loopManager.OnEnemyKill();
-            Deactivate();
+            moveSoundTimer = 0f; // 멈추면 타이머 초기화 (출발 시 바로 소리 나도록)
         }
     }
 
