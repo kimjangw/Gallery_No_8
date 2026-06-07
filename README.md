@@ -1,12 +1,13 @@
 # Gallery No.8
----
+
 이상현상을 구분하고 8번의 정답을 맞추면 탈출하는 공포게임.
 <img width="1570" height="880" alt="image" src="https://github.com/user-attachments/assets/446972f2-42a9-4b98-88ba-7441de26ae6a" />
 
 ---
 
-기술 스택
- 
+프로젝트 소개
+--
+
 | 분류 | 내용 |
 |------|------|
 | **장르** | 8번 출구류 3D 3인칭 공포게임 |
