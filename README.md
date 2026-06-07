@@ -66,7 +66,9 @@ Enemy가 있으면 나왔던 곳으로 다시 돌아오고, 없다면 반대면 
 ---
 트러블 슈팅
 --
+- 렌더링 지식 부족
 | 단면 렌더링 | Shader Graph 작업 | 양면 렌더링 |
 |-----------|------|------|
 | <img width="283" height="346" alt="image" src="https://github.com/user-attachments/assets/e5e04d4b-a1c7-4d8d-a373-eea71ab9b136" /> | <img width="390" height="327" alt="image" src="https://github.com/user-attachments/assets/c39fc806-d98a-4325-a6ce-c14522619457" /> | <img width="284" height="335" alt="image" src="https://github.com/user-attachments/assets/5cf6bfa4-c4f8-419d-b3c4-b984f0733ced" /> |
-
+Q : 해당 커튼은 8번출구 게임처럼 꺾인 복도 형태가 아니기 때문에 전시실을 가릴 필요가 있었으나 단면 렌더링에 의해 안쪽이 보이는 이슈 발생
+A : Shader Graph를 이용하여 양면 렌더링을 진행하였고, 후에 URP의 원리를 배운 후 Backface Culling의 최적화에 의해 뒷면이 안보이는 것을 인식하였고 법선 벡터의 각도와 카메라의 각도를 계산하여 0미만이면 뒷면이라고 판정하는 것을 이해하였습니다.
