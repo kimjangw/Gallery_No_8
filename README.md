@@ -1,18 +1,33 @@
-<img width="363" height="206" alt="image" src="https://github.com/user-attachments/assets/625a5fd2-729e-43cf-9581-1433b2107c7b" /># Gallery No.8
-
+# Gallery No.8
+---
+이상현상을 구분하고 8번의 정답을 맞추면 탈출하는 공포게임.
 <img width="1570" height="880" alt="image" src="https://github.com/user-attachments/assets/446972f2-42a9-4b98-88ba-7441de26ae6a" />
 
+---
 
-🛠️ 기술 스택
+기술 스택
  
 | 분류 | 내용 |
 |------|------|
 | **장르** | 8번 출구류 3D 3인칭 공포게임 |
 | **플랫폼** | PC |
-| **엔진** | Unity 6000.0.60f1 LTS |
+| **엔진** | Unity 6.0 LTS |
 | **언어** | C# |
 | **IDE** | Visual Studio 2022 Community |
 | **버전 관리** | GitHub |
 | **개발 인원** | 1인 개발 |
 | **개발 기간** | 3주 |
 | **사용 AI** | ChatGPT |
+
+
+---
+
+게임 소개
+--
+반복되는 복도를 탐색하며 이상 현상을 관찰하는 3인칭 공포 게임입니다.
+매 루프마다 석상 Enemy의 활성화 유무가 달라지고 활성화된다면 5개의 석상 Enemy중 하나가 플레이를 위협합니다.
+정답이면 다음 층으로 진행하고, 오답이면 루프가 초기화됩니다.
+
+---
+
+
