@@ -41,7 +41,7 @@ Enemy가 있으면 나왔던 곳으로 다시 돌아오고, 없다면 반대면 
 <img width="1342" height="748" alt="image" src="https://github.com/user-attachments/assets/002e3281-5ba6-4b9d-a3e4-8bb6bf57c0d1" />
 
 - 엔딩 크레딧
-<img width="1359" height="771" alt="image" src="https://github.com/user-attachments/assets/0a9eefb2-7b4d-48ea-9c3b-67534a5b2062" />
+<img width="1257" height="756" alt="image" src="https://github.com/user-attachments/assets/1629e398-1463-41f4-af9d-6e8a69d661c6" />
 <img width="1295" height="364" alt="image" src="https://github.com/user-attachments/assets/0d45f954-d75f-40b6-ab52-68386c044f15" />
 
 ---
