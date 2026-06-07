@@ -1,4 +1,16 @@
-# Portfolo3D
+# Gallery No.8
 
-- 유니티 버전 6000.0.60f1 LTS
-- Visual Studio 2022 comunity
+
+🛠️ 기술 스택
+ 
+| 분류 | 내용 |
+|------|------|
+| **장르** | 8번 출구류 3D 3인칭 공포게임 |
+| **플랫폼** | PC |
+| **엔진** | Unity 6000.0.60f1 LTS |
+| **언어** | C# |
+| **IDE** | Visual Studio 2022 Community |
+| **버전 관리** | Git / GitHub |
+| **개발 인원** | 1인 개발 |
+| **개발 기간** | 3주 |
+| **사용 AI** | ChatGPT |
