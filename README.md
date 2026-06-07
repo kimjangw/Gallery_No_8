@@ -69,7 +69,6 @@ Enemy가 있으면 나왔던 곳으로 다시 돌아오고, 없다면 반대면 
 | 단면 렌더링 | Shader Graph 작업 | 양면 렌더링 |
 |-----------|------|------|
 
-|<img width="283" height="346" alt="image" src="https://github.com/user-attachments/assets/e5e04d4b-a1c7-4d8d-a373-eea71ab9b136" /> | <img width="390" height="327" alt="image" src="https://github.com/user-attachments/assets/c39fc806-d98a-4325-a6ce-c14522619457" />
- | <img width="284" height="335" alt="image" src="https://github.com/user-attachments/assets/5cf6bfa4-c4f8-419d-b3c4-b984f0733ced" />
- |
+| <img width="283" height="346" alt="image" src="https://github.com/user-attachments/assets/e5e04d4b-a1c7-4d8d-a373-eea71ab9b136" /> | <img width="390" height="327" alt="image" src="https://github.com/user-attachments/assets/c39fc806-d98a-4325-a6ce-c14522619457" />
+ | <img width="284" height="335" alt="image" src="https://github.com/user-attachments/assets/5cf6bfa4-c4f8-419d-b3c4-b984f0733ced" /> |
 
