@@ -18,8 +18,6 @@
 | **버전 관리** | GitHub |
 | **개발 인원** | 1인 개발 |
 | **개발 기간** | 3주 |
-| **사용 AI** | ChatGPT |
-
 
 ---
 
@@ -45,3 +43,33 @@ Enemy가 있으면 나왔던 곳으로 다시 돌아오고, 없다면 반대면 
 - 엔딩 크레딧
 <img width="1359" height="771" alt="image" src="https://github.com/user-attachments/assets/0a9eefb2-7b4d-48ea-9c3b-67534a5b2062" />
 <img width="1295" height="364" alt="image" src="https://github.com/user-attachments/assets/0d45f954-d75f-40b6-ab52-68386c044f15" />
+
+---
+
+조작법
+--
+
+| 키 / 입력 | 동작 |
+|-----------|------|
+| `W` `A` `S` `D` | 캐릭터 이동 |
+| 마우스 이동 | 시점 회전 |
+
+---
+핵심 기술
+--
+- Enemy FSM 구현
+- Input System과 BlendTree 연동
+- Avatar Mask & IK Rigging
+- NavMesh
+- Shader Graph
+
+---
+트러블 슈팅
+--
+| 단면 렌더링 | Shader Graph 작업 | 양면 렌더링 |
+|-----------|------|------|
+
+|<img width="283" height="346" alt="image" src="https://github.com/user-attachments/assets/e5e04d4b-a1c7-4d8d-a373-eea71ab9b136" /> | <img width="390" height="327" alt="image" src="https://github.com/user-attachments/assets/c39fc806-d98a-4325-a6ce-c14522619457" />
+ | <img width="284" height="335" alt="image" src="https://github.com/user-attachments/assets/5cf6bfa4-c4f8-419d-b3c4-b984f0733ced" />
+ |
+
