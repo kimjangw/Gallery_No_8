@@ -73,5 +73,5 @@ Enemy가 있으면 나왔던 곳으로 다시 돌아오고, 없다면 반대면 
 |-----------|------|------|
 | <img width="283" height="346" alt="image" src="https://github.com/user-attachments/assets/e5e04d4b-a1c7-4d8d-a373-eea71ab9b136" /> | <img width="390" height="327" alt="image" src="https://github.com/user-attachments/assets/c39fc806-d98a-4325-a6ce-c14522619457" /> | <img width="284" height="335" alt="image" src="https://github.com/user-attachments/assets/5cf6bfa4-c4f8-419d-b3c4-b984f0733ced" /> |
 
-Q : 해당 커튼은 8번출구 게임처럼 꺾인 복도 형태가 아니기 때문에 전시실을 가릴 필요가 있었으나 단면 렌더링에 의해 뒷면에서 반대편이 보이는 이슈 발생  
+Q : 해당 커튼은 8번출구 게임처럼 꺾인 복도 형태가 아니기 때문에 전시실을 가리기 위해 설치 하였으나 단면 렌더링에 의해 뒷면에서 확인시 반대편이 보이는 이슈 발생  
 A : URP의 최적화 기능 중 하나인 Backface Culling에 의하여 물체의 뒷면을 렌더링 하지 않음을 인식. 이것을 해결하기 위해 Shader Graph를 이용하여 Render Face를 Both로 설정하여 문제를 해결.
